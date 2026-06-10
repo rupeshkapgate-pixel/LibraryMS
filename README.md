@@ -76,23 +76,104 @@ services/api-gateway/tests/test_schemas.py ..........          PASSED
 ## Architecture
 
 ```
-Browser → Next.js Frontend (:3000)
-             │ HTTP/REST
-          API Gateway (:8000, FastAPI)
-             │           │          │
-          gRPC        gRPC       gRPC
-        book-svc    member-svc  lending-svc
-        (:50051)    (:50052)    (:50053)
-             └───────────────────────┘
-                        │
-                  PostgreSQL (:5432)
-              books_db / members_db / lending_db
+┌──────────────────────────────────────────────────────────┐
+│                      Browser / Mobile                     │
+└──────────────────────┬───────────────────────────────────┘
+                       │ HTTP/REST
+┌──────────────────────▼───────────────────────────────────┐
+│             Next.js Frontend (port 3000)                  │
+│         TypeScript · TailwindCSS · React Query            │
+└──────────────────────┬───────────────────────────────────┘
+                       │ HTTP/REST
+┌──────────────────────▼───────────────────────────────────┐
+│             API Gateway / FastAPI (port 8000)             │
+│    REST endpoints · Validation · gRPC client · CORS       │
+└────────┬─────────────┬──────────────┬────────────────────┘
+         │ gRPC        │ gRPC         │ gRPC
+   ┌─────▼──────┐ ┌────▼───────┐ ┌───▼──────────┐
+   │Book Service│ │Mbr Service │ │Lend Service  │
+   │ port 50051 │ │ port 50052 │ │  port 50053  │
+   │            │ │            │ │(calls Book + │
+   │  books_db  │ │ members_db │ │  Member svc) │
+   └─────┬──────┘ └────┬───────┘ └───┬──────────┘
+         │             │             │  lending_db
+         └─────────────┴─────────────┘
+                       │
+            ┌──────────▼──────────┐
+            │  PostgreSQL (5432)  │
+            │  books_db schema    │
+            │  members_db schema  │
+            │  lending_db schema  │
+            └─────────────────────┘
 ```
-
+---
 See [docs/architecture.md](docs/architecture.md) for full detail including the
 Saga consistency pattern for borrow/return operations.
-
 ---
+## Project Structure
+
+```
+library-management-system/
+├── Makefile                          # All dev commands
+├── docker-compose.yml                # Full stack orchestration
+├── .env.example                      # Environment template
+├── proto/
+│   ├── common.proto                  # Shared pagination/status messages
+│   ├── book.proto                    # Book service contracts
+│   ├── member.proto                  # Member service contracts
+│   └── lending.proto                 # Lending service contracts
+├── services/
+│   ├── api-gateway/                  # FastAPI REST gateway
+│   │   ├── app/
+│   │   │   ├── main.py               # FastAPI app, health, dashboard
+│   │   │   ├── routers/              # books.py, members.py, lending.py
+│   │   │   ├── schemas/              # Pydantic request/response models
+│   │   │   ├── grpc_clients/         # Channel factories + proto stubs
+│   │   │   └── middleware/           # Correlation ID + request logging
+│   │   ├── tests/
+│   │   └── Dockerfile
+│   ├── book-service/                 # gRPC Book microservice
+│   │   ├── app/
+│   │   │   ├── models/book.py        # SQLAlchemy Book model
+│   │   │   ├── repositories/         # BookRepository (async CRUD)
+│   │   │   ├── grpc_handlers/        # BookServiceHandler
+│   │   │   └── database.py           # Async engine + session
+│   │   ├── main.py                   # gRPC server entry point
+│   │   ├── tests/
+│   │   └── Dockerfile
+│   ├── member-service/               # gRPC Member microservice
+│   ├── lending-service/              # gRPC Lending microservice
+│   └── frontend/                     # Next.js application
+│       └── src/
+│           ├── app/                  # Next.js 14 App Router pages
+│           ├── components/           # Reusable UI + form components
+│           ├── lib/                  # API client, utilities
+│           └── types/                # TypeScript type definitions
+├── infrastructure/
+│   └── k8s/                          # Kubernetes manifests
+│       ├── namespace.yaml
+│       ├── configmap.yaml
+│       ├── secret.yaml
+│       ├── postgres-deployment.yaml
+│       ├── book-service-deployment.yaml
+│       ├── member-service-deployment.yaml
+│       ├── lending-service-deployment.yaml
+│       ├── api-gateway-deployment.yaml
+│       ├── frontend-deployment.yaml
+│       ├── ingress.yaml
+│       ├── hpa.yaml
+│       └── network-policy.yaml
+├── scripts/
+│   ├── generate_proto.sh             # Proto compilation script
+│   ├── init_db.sql                   # Schema initialization
+│   ├── sample_rest_client.py         # Demo REST client
+│   └── sample_grpc_client.py         # Demo gRPC client
+├── docs/
+│   ├── postman_collection.json       # Import into Postman
+│   └── curl_examples.sh              # cURL reference
+└── .github/workflows/ci.yml          # GitHub Actions pipeline
+```
+
 
 ## Technology Stack
 
