@@ -1,22 +1,14 @@
-"""
-Lending Repository — data-access layer.
-
-Provides no-commit helpers (flush only) and FOR UPDATE locking variants.
-Public CRUD methods commit themselves without calling session.begin()
-to be compatible with SQLAlchemy 2.x autobegin behavior.
-"""
-from __future__ import annotations
-
+"""Repository layer for Lending Service."""
 import uuid
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.lending import LendingRecord, LendingStatus
 
-FINE_PER_DAY     = 10.0
+FINE_PER_DAY = 10.0  # ₹10 per day
 DEFAULT_DUE_DAYS = 14
 
 
@@ -24,23 +16,7 @@ class LendingRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    # ── FOR UPDATE (row-level lock) ───────────────────────────────────────────
-
-    async def get_by_id_for_update(self, record_id: str) -> Optional[LendingRecord]:
-        """SELECT ... FOR UPDATE — serialises concurrent access to this row."""
-        stmt = (
-            select(LendingRecord)
-            .where(LendingRecord.id == uuid.UUID(record_id))
-            .with_for_update()
-        )
-        result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
-
-    # ── no-commit helpers (used inside service-layer transactions) ────────────
-
-    async def create_no_commit(
-        self, member_id: str, book_id: str, due_days: int = DEFAULT_DUE_DAYS
-    ) -> LendingRecord:
+    async def create(self, member_id: str, book_id: str, due_days: int = DEFAULT_DUE_DAYS) -> LendingRecord:
         now = datetime.utcnow()
         record = LendingRecord(
             id=uuid.uuid4(),
@@ -52,10 +28,9 @@ class LendingRepository:
             fine_amount=0.0,
         )
         self.session.add(record)
-        await self.session.flush()
+        await self.session.commit()
+        await self.session.refresh(record)
         return record
-
-    # ── Read-only helpers ─────────────────────────────────────────────────────
 
     async def get_by_id(self, record_id: str) -> Optional[LendingRecord]:
         stmt = select(LendingRecord).where(LendingRecord.id == uuid.UUID(record_id))
@@ -71,6 +46,48 @@ class LendingRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def return_book(self, record_id: str) -> Optional[LendingRecord]:
+        record = await self.get_by_id(record_id)
+        if not record:
+            return None
+        if record.status == LendingStatus.RETURNED:
+            return None
+
+        now = datetime.utcnow()
+        record.returned_at = now
+        record.updated_at = now
+
+        # Calculate fine
+        if now > record.due_date:
+            overdue_days = (now - record.due_date).days
+            record.fine_amount = overdue_days * FINE_PER_DAY
+            record.status = LendingStatus.RETURNED
+        else:
+            record.fine_amount = 0.0
+            record.status = LendingStatus.RETURNED
+
+        await self.session.commit()
+        await self.session.refresh(record)
+        return record
+
+    async def update_overdue_status(self) -> int:
+        """Mark all overdue records."""
+        now = datetime.utcnow()
+        stmt = select(LendingRecord).where(
+            LendingRecord.status == LendingStatus.BORROWED,
+            LendingRecord.due_date < now,
+        )
+        result = await self.session.execute(stmt)
+        records = result.scalars().all()
+        count = 0
+        for record in records:
+            record.status = LendingStatus.OVERDUE
+            record.updated_at = now
+            count += 1
+        if count:
+            await self.session.commit()
+        return count
+
     async def list_borrowed_books(
         self,
         page: int = 1,
@@ -78,114 +95,63 @@ class LendingRepository:
         sort_by: str = "borrowed_at",
         sort_order: str = "desc",
     ) -> Tuple[List[LendingRecord], int]:
-        base = select(LendingRecord).where(
+        base_stmt = select(LendingRecord).where(
             LendingRecord.status.in_([LendingStatus.BORROWED, LendingStatus.OVERDUE])
         )
-        total = await self.session.scalar(
-            select(func.count()).select_from(base.subquery())
-        )
+        count_stmt = select(func.count()).select_from(base_stmt.subquery())
+        total = await self.session.scalar(count_stmt)
+
         col = getattr(LendingRecord, sort_by, LendingRecord.borrowed_at)
-        base = base.order_by(col.desc() if sort_order == "desc" else col.asc())
-        base = base.offset((page - 1) * page_size).limit(page_size)
-        result = await self.session.execute(base)
+        if sort_order == "desc":
+            base_stmt = base_stmt.order_by(col.desc())
+        else:
+            base_stmt = base_stmt.order_by(col.asc())
+
+        base_stmt = base_stmt.offset((page - 1) * page_size).limit(page_size)
+        result = await self.session.execute(base_stmt)
         return result.scalars().all(), total or 0
 
     async def list_by_member(
         self, member_id: str, page: int = 1, page_size: int = 20
     ) -> Tuple[List[LendingRecord], int]:
-        base = (
-            select(LendingRecord)
-            .where(LendingRecord.member_id == uuid.UUID(member_id))
-            .order_by(LendingRecord.borrowed_at.desc())
-        )
-        total = await self.session.scalar(
-            select(func.count()).select_from(base.subquery())
-        )
-        base = base.offset((page - 1) * page_size).limit(page_size)
-        result = await self.session.execute(base)
+        base_stmt = select(LendingRecord).where(
+            LendingRecord.member_id == uuid.UUID(member_id)
+        ).order_by(LendingRecord.borrowed_at.desc())
+
+        count_stmt = select(func.count()).select_from(base_stmt.subquery())
+        total = await self.session.scalar(count_stmt)
+
+        base_stmt = base_stmt.offset((page - 1) * page_size).limit(page_size)
+        result = await self.session.execute(base_stmt)
         return result.scalars().all(), total or 0
 
     async def list_by_book(
         self, book_id: str, page: int = 1, page_size: int = 20
     ) -> Tuple[List[LendingRecord], int]:
-        base = (
-            select(LendingRecord)
-            .where(LendingRecord.book_id == uuid.UUID(book_id))
-            .order_by(LendingRecord.borrowed_at.desc())
-        )
-        total = await self.session.scalar(
-            select(func.count()).select_from(base.subquery())
-        )
-        base = base.offset((page - 1) * page_size).limit(page_size)
-        result = await self.session.execute(base)
+        base_stmt = select(LendingRecord).where(
+            LendingRecord.book_id == uuid.UUID(book_id)
+        ).order_by(LendingRecord.borrowed_at.desc())
+
+        count_stmt = select(func.count()).select_from(base_stmt.subquery())
+        total = await self.session.scalar(count_stmt)
+
+        base_stmt = base_stmt.offset((page - 1) * page_size).limit(page_size)
+        result = await self.session.execute(base_stmt)
         return result.scalars().all(), total or 0
 
     async def list_overdue(
         self, page: int = 1, page_size: int = 20
     ) -> Tuple[List[LendingRecord], int]:
-        # First mark overdue records
-        await self._mark_overdue()
+        # First update overdue status
+        await self.update_overdue_status()
 
-        base = (
-            select(LendingRecord)
-            .where(LendingRecord.status == LendingStatus.OVERDUE)
-            .order_by(LendingRecord.due_date.asc())
-        )
-        total = await self.session.scalar(
-            select(func.count()).select_from(base.subquery())
-        )
-        base = base.offset((page - 1) * page_size).limit(page_size)
-        result = await self.session.execute(base)
+        base_stmt = select(LendingRecord).where(
+            LendingRecord.status == LendingStatus.OVERDUE
+        ).order_by(LendingRecord.due_date.asc())
+
+        count_stmt = select(func.count()).select_from(base_stmt.subquery())
+        total = await self.session.scalar(count_stmt)
+
+        base_stmt = base_stmt.offset((page - 1) * page_size).limit(page_size)
+        result = await self.session.execute(base_stmt)
         return result.scalars().all(), total or 0
-
-    # ── Transactional public methods (safe to call from gRPC handlers) ────────
-
-    async def create(
-        self, member_id: str, book_id: str, due_days: int = DEFAULT_DUE_DAYS
-    ) -> LendingRecord:
-        now = datetime.utcnow()
-        record = LendingRecord(
-            id=uuid.uuid4(),
-            member_id=uuid.UUID(member_id),
-            book_id=uuid.UUID(book_id),
-            borrowed_at=now,
-            due_date=now + timedelta(days=due_days),
-            status=LendingStatus.BORROWED,
-            fine_amount=0.0,
-        )
-        self.session.add(record)
-        await self.session.commit()
-        await self.session.refresh(record)
-        return record
-
-    async def return_book(self, record_id: str) -> Optional[LendingRecord]:
-        record = await self.get_by_id(record_id)
-        if not record or record.status == LendingStatus.RETURNED:
-            return None
-        now = datetime.utcnow()
-        record.returned_at = now
-        record.updated_at  = now
-        record.status      = LendingStatus.RETURNED
-        if now > record.due_date:
-            record.fine_amount = (now - record.due_date).days * FINE_PER_DAY
-        else:
-            record.fine_amount = 0.0
-        await self.session.commit()
-        await self.session.refresh(record)
-        return record
-
-    # ── Private helpers ───────────────────────────────────────────────────────
-
-    async def _mark_overdue(self) -> None:
-        now  = datetime.utcnow()
-        stmt = select(LendingRecord).where(
-            LendingRecord.status == LendingStatus.BORROWED,
-            LendingRecord.due_date < now,
-        )
-        result = await self.session.execute(stmt)
-        records = result.scalars().all()
-        if records:
-            for r in records:
-                r.status     = LendingStatus.OVERDUE
-                r.updated_at = now
-            await self.session.commit()

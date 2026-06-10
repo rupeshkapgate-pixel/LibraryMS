@@ -4,6 +4,7 @@ package book;
 
 import "common.proto";
 
+option python_out = ".";
 
 message Book {
   string id = 1;

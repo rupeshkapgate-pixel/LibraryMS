@@ -4,6 +4,7 @@ package member;
 
 import "common.proto";
 
+option python_out = ".";
 
 enum MembershipStatus {
   ACTIVE = 0;

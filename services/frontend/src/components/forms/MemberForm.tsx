@@ -4,7 +4,7 @@ import type { MemberCreate } from "@/types";
 
 interface MemberFormProps {
   initialData?: Partial<MemberCreate>;
-  onSubmit: (data: MemberCreate) => Promise<unknown>;
+  onSubmit: (data: MemberCreate) => Promise<void>;
   submitLabel?: string;
   loading?: boolean;
 }
