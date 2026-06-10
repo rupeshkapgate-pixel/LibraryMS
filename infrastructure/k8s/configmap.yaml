@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lms-config
+  namespace: library-system
+data:
+  POSTGRES_DB: librarydb
+  GRPC_TIMEOUT: "30"
+  DB_ECHO: "false"
+  BOOK_SERVICE_HOST: book-service
+  BOOK_SERVICE_PORT: "50051"
+  MEMBER_SERVICE_HOST: member-service
+  MEMBER_SERVICE_PORT: "50052"
+  LENDING_SERVICE_HOST: lending-service
+  LENDING_SERVICE_PORT: "50053"
+  ALLOWED_ORIGINS: "http://frontend:3000,http://localhost:3000"
+  NEXT_PUBLIC_API_URL: "http://api-gateway:8000"

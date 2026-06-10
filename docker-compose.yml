@@ -1,0 +1,152 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: lms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-library}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-library}
+      POSTGRES_DB: ${POSTGRES_DB:-librarydb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-library} -d ${POSTGRES_DB:-librarydb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lms-network
+
+  # ── Book Service ──────────────────────────────────────────────────────────
+  book-service:
+    build:
+      context: .
+      dockerfile: services/book-service/Dockerfile
+    container_name: lms-book-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-library}:${POSTGRES_PASSWORD:-library}@postgres:5432/${POSTGRES_DB:-librarydb}
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50051
+      DB_ECHO: "false"
+    ports:
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; ch = grpc.insecure_channel('localhost:50051'); grpc.channel_ready_future(ch).result(timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── Member Service ────────────────────────────────────────────────────────
+  member-service:
+    build:
+      context: .
+      dockerfile: services/member-service/Dockerfile
+    container_name: lms-member-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-library}:${POSTGRES_PASSWORD:-library}@postgres:5432/${POSTGRES_DB:-librarydb}
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50052
+      DB_ECHO: "false"
+    ports:
+      - "50052:50052"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import grpc; ch = grpc.insecure_channel('localhost:50052'); grpc.channel_ready_future(ch).result(timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── Lending Service ───────────────────────────────────────────────────────
+  lending-service:
+    build:
+      context: .
+      dockerfile: services/lending-service/Dockerfile
+    container_name: lms-lending-service
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-library}:${POSTGRES_PASSWORD:-library}@postgres:5432/${POSTGRES_DB:-librarydb}
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50053
+      BOOK_SERVICE_HOST: book-service
+      BOOK_SERVICE_PORT: 50051
+      MEMBER_SERVICE_HOST: member-service
+      MEMBER_SERVICE_PORT: 50052
+      DB_ECHO: "false"
+    ports:
+      - "50053:50053"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      book-service:
+        condition: service_healthy
+      member-service:
+        condition: service_healthy
+    networks:
+      - lms-network
+
+  # ── API Gateway ───────────────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: lms-api-gateway
+    restart: unless-stopped
+    environment:
+      BOOK_SERVICE_HOST: book-service
+      BOOK_SERVICE_PORT: 50051
+      MEMBER_SERVICE_HOST: member-service
+      MEMBER_SERVICE_PORT: 50052
+      LENDING_SERVICE_HOST: lending-service
+      LENDING_SERVICE_PORT: 50053
+      ALLOWED_ORIGINS: "http://localhost:3000,http://frontend:3000"
+      GRPC_TIMEOUT: 30
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - book-service
+      - member-service
+      - lending-service
+    networks:
+      - lms-network
+
+  # ── Frontend ──────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: services/frontend
+      dockerfile: Dockerfile
+    container_name: lms-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+    networks:
+      - lms-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  lms-network:
+    driver: bridge

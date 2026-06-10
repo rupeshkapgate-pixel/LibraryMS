@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lending-service
+  namespace: library-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: lending-service
+  template:
+    metadata:
+      labels:
+        app: lending-service
+    spec:
+      containers:
+        - name: lending-service
+          image: lms/lending-service:latest
+          ports:
+            - containerPort: 50053
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: lms-secrets
+                  key: DATABASE_URL
+            - name: GRPC_PORT
+              value: "50053"
+            - name: BOOK_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: lms-config
+                  key: BOOK_SERVICE_HOST
+            - name: BOOK_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: lms-config
+                  key: BOOK_SERVICE_PORT
+            - name: MEMBER_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: lms-config
+                  key: MEMBER_SERVICE_HOST
+            - name: MEMBER_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: lms-config
+                  key: MEMBER_SERVICE_PORT
+          readinessProbe:
+            tcpSocket:
+              port: 50053
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lending-service
+  namespace: library-system
+spec:
+  selector:
+    app: lending-service
+  ports:
+    - port: 50053
+      targetPort: 50053

@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package member;
+
+import "common.proto";
+
+
+enum MembershipStatus {
+  ACTIVE = 0;
+  INACTIVE = 1;
+}
+
+message Member {
+  string id = 1;
+  string full_name = 2;
+  string email = 3;
+  string phone = 4;
+  string address = 5;
+  MembershipStatus membership_status = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  string deleted_at = 9;
+}
+
+message CreateMemberRequest {
+  string full_name = 1;
+  string email = 2;
+  string phone = 3;
+  string address = 4;
+}
+
+message UpdateMemberRequest {
+  string id = 1;
+  string full_name = 2;
+  string email = 3;
+  string phone = 4;
+  string address = 5;
+}
+
+message GetMemberRequest {
+  string id = 1;
+}
+
+message DeactivateMemberRequest {
+  string id = 1;
+}
+
+message ListMembersRequest {
+  common.PaginationRequest pagination = 1;
+  MembershipStatus status = 2;
+  bool filter_by_status = 3;
+  string sort_by = 4;
+  string sort_order = 5;
+}
+
+message ListMembersResponse {
+  repeated Member members = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+message ValidateActiveMemberRequest {
+  string member_id = 1;
+}
+
+message ValidateActiveMemberResponse {
+  bool is_active = 1;
+  string message = 2;
+  Member member = 3;
+}
+
+service MemberService {
+  rpc CreateMember(CreateMemberRequest) returns (Member);
+  rpc UpdateMember(UpdateMemberRequest) returns (Member);
+  rpc GetMember(GetMemberRequest) returns (Member);
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
+  rpc ValidateActiveMember(ValidateActiveMemberRequest) returns (ValidateActiveMemberResponse);
+  rpc DeactivateMember(DeactivateMemberRequest) returns (Member);
+}

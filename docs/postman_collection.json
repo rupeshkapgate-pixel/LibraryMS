@@ -1,0 +1,252 @@
+{
+  "info": {
+    "name": "Library Management System API",
+    "description": "Complete REST API collection for the Library Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "lms-api-collection-v1"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "book_id",   "value": "", "type": "string" },
+    { "key": "member_id", "value": "", "type": "string" },
+    { "key": "lending_id","value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/dashboard"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "Create Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('book_id', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/books",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"The Pragmatic Programmer\",\n  \"author\": \"David Thomas\",\n  \"isbn\": \"9780135957059\",\n  \"publisher\": \"Addison-Wesley\",\n  \"category\": \"Technology\",\n  \"description\": \"Your Journey to Mastery\",\n  \"published_year\": 2019,\n  \"total_copies\": 3,\n  \"shelf_location\": \"B2-10\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Books",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/books?page=1&page_size=20",
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" },
+                { "key": "category", "value": "", "disabled": true },
+                { "key": "sort_by", "value": "created_at", "disabled": true },
+                { "key": "sort_order", "value": "desc", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Books",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/books/search?q=pragmatic&search_by=title",
+              "query": [
+                { "key": "q", "value": "pragmatic" },
+                { "key": "search_by", "value": "title" },
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Book by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/books/{{book_id}}"
+          }
+        },
+        {
+          "name": "Update Book",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/v1/books/{{book_id}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shelf_location\": \"C4-22\",\n  \"total_copies\": 5\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Book",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/books/{{book_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Members",
+      "item": [
+        {
+          "name": "Create Member",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('member_id', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/members",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Priya Sharma\",\n  \"email\": \"priya.sharma@example.com\",\n  \"phone\": \"+91 98765 43210\",\n  \"address\": \"123 MG Road, Pune, Maharashtra 411001\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Members",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/members?page=1&page_size=20"
+          }
+        },
+        {
+          "name": "Get Member by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/members/{{member_id}}"
+          }
+        },
+        {
+          "name": "Update Member",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/v1/members/{{member_id}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+91 91234 56789\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Deactivate Member",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/v1/members/{{member_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lending",
+      "item": [
+        {
+          "name": "Borrow Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('lending_id', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/lending/borrow",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"member_id\": \"{{member_id}}\",\n  \"book_id\": \"{{book_id}}\",\n  \"due_days\": 14\n}"
+            }
+          }
+        },
+        {
+          "name": "Return Book",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/v1/lending/return",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lending_id\": \"{{lending_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Borrowed Books",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/lending/borrowed?page=1&page_size=20"
+          }
+        },
+        {
+          "name": "Borrowed by Member",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/lending/member/{{member_id}}"
+          }
+        },
+        {
+          "name": "Book Borrow History",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/lending/book/{{book_id}}/history"
+          }
+        },
+        {
+          "name": "List Overdue Books",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/v1/lending/overdue"
+          }
+        }
+      ]
+    }
+  ]
+}

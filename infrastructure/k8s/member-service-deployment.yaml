@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: member-service
+  namespace: library-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: member-service
+  template:
+    metadata:
+      labels:
+        app: member-service
+    spec:
+      containers:
+        - name: member-service
+          image: lms/member-service:latest
+          ports:
+            - containerPort: 50052
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: lms-secrets
+                  key: DATABASE_URL
+            - name: GRPC_PORT
+              value: "50052"
+          readinessProbe:
+            tcpSocket:
+              port: 50052
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: member-service
+  namespace: library-system
+spec:
+  selector:
+    app: member-service
+  ports:
+    - port: 50052
+      targetPort: 50052

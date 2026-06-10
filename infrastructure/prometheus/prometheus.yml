@@ -1,0 +1,50 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: local
+    env:     development
+
+scrape_configs:
+  # ── API Gateway ─────────────────────────────────────────────────────────
+  - job_name: api-gateway
+    static_configs:
+      - targets: ["api-gateway:8000"]
+        labels:
+          service: api-gateway
+    metrics_path: /metrics
+
+  # ── gRPC Services (Prometheus HTTP servers) ──────────────────────────────
+  - job_name: book-service
+    static_configs:
+      - targets: ["book-service:9091"]
+        labels:
+          service: book-service
+    metrics_path: /metrics
+
+  - job_name: member-service
+    static_configs:
+      - targets: ["member-service:9092"]
+        labels:
+          service: member-service
+    metrics_path: /metrics
+
+  - job_name: lending-service
+    static_configs:
+      - targets: ["lending-service:9093"]
+        labels:
+          service: lending-service
+    metrics_path: /metrics
+
+  # ── OTel Collector self-metrics ──────────────────────────────────────────
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8888"]
+
+  # ── Prometheus self-scrape ───────────────────────────────────────────────
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+rule_files: []
+alerting: {}

@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package lending;
+
+import "common.proto";
+
+
+enum LendingStatus {
+  BORROWED = 0;
+  RETURNED = 1;
+  OVERDUE = 2;
+}
+
+message LendingRecord {
+  string id = 1;
+  string member_id = 2;
+  string book_id = 3;
+  string borrowed_at = 4;
+  string due_date = 5;
+  string returned_at = 6;
+  LendingStatus status = 7;
+  float fine_amount = 8;
+  string created_at = 9;
+  string updated_at = 10;
+  // Enriched fields
+  string book_title = 11;
+  string book_isbn = 12;
+  string member_name = 13;
+  string member_email = 14;
+}
+
+message BorrowBookRequest {
+  string member_id = 1;
+  string book_id = 2;
+  int32 due_days = 3;
+}
+
+message ReturnBookRequest {
+  string lending_id = 1;
+}
+
+message ReturnBookResponse {
+  LendingRecord record = 1;
+  float fine_amount = 2;
+  bool is_overdue = 3;
+  int32 overdue_days = 4;
+}
+
+message ListBorrowedBooksRequest {
+  common.PaginationRequest pagination = 1;
+  string sort_by = 2;
+  string sort_order = 3;
+}
+
+message ListBorrowedBooksResponse {
+  repeated LendingRecord records = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+message ListBorrowedBooksByMemberRequest {
+  string member_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+message ListBookBorrowHistoryRequest {
+  string book_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+message ListOverdueBooksRequest {
+  common.PaginationRequest pagination = 1;
+}
+
+service LendingService {
+  rpc BorrowBook(BorrowBookRequest) returns (LendingRecord);
+  rpc ReturnBook(ReturnBookRequest) returns (ReturnBookResponse);
+  rpc ListBorrowedBooks(ListBorrowedBooksRequest) returns (ListBorrowedBooksResponse);
+  rpc ListBorrowedBooksByMember(ListBorrowedBooksByMemberRequest) returns (ListBorrowedBooksResponse);
+  rpc ListBookBorrowHistory(ListBookBorrowHistoryRequest) returns (ListBorrowedBooksResponse);
+  rpc ListOverdueBooks(ListOverdueBooksRequest) returns (ListBorrowedBooksResponse);
+}

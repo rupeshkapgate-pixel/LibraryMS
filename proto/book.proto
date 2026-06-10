@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package book;
+
+import "common.proto";
+
+
+message Book {
+  string id = 1;
+  string title = 2;
+  string author = 3;
+  string isbn = 4;
+  string publisher = 5;
+  string category = 6;
+  string description = 7;
+  int32 published_year = 8;
+  int32 total_copies = 9;
+  int32 available_copies = 10;
+  string shelf_location = 11;
+  string created_at = 12;
+  string updated_at = 13;
+  string deleted_at = 14;
+}
+
+message CreateBookRequest {
+  string title = 1;
+  string author = 2;
+  string isbn = 3;
+  string publisher = 4;
+  string category = 5;
+  string description = 6;
+  int32 published_year = 7;
+  int32 total_copies = 8;
+  string shelf_location = 9;
+}
+
+message UpdateBookRequest {
+  string id = 1;
+  string title = 2;
+  string author = 3;
+  string isbn = 4;
+  string publisher = 5;
+  string category = 6;
+  string description = 7;
+  int32 published_year = 8;
+  int32 total_copies = 9;
+  string shelf_location = 10;
+}
+
+message GetBookRequest {
+  string id = 1;
+}
+
+message DeleteBookRequest {
+  string id = 1;
+}
+
+message ListBooksRequest {
+  common.PaginationRequest pagination = 1;
+  string category = 2;
+  string sort_by = 3;
+  string sort_order = 4;
+}
+
+message ListBooksResponse {
+  repeated Book books = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+message SearchBooksRequest {
+  string query = 1;
+  string search_by = 2;
+  common.PaginationRequest pagination = 3;
+}
+
+message SearchBooksResponse {
+  repeated Book books = 1;
+  common.PaginationResponse pagination = 2;
+}
+
+message CheckAvailabilityRequest {
+  string book_id = 1;
+}
+
+message CheckAvailabilityResponse {
+  bool available = 1;
+  int32 available_copies = 2;
+}
+
+message UpdateCopiesRequest {
+  string book_id = 1;
+  int32 count = 2;
+}
+
+message UpdateCopiesResponse {
+  bool success = 1;
+  int32 available_copies = 2;
+}
+
+service BookService {
+  rpc CreateBook(CreateBookRequest) returns (Book);
+  rpc UpdateBook(UpdateBookRequest) returns (Book);
+  rpc GetBook(GetBookRequest) returns (Book);
+  rpc ListBooks(ListBooksRequest) returns (ListBooksResponse);
+  rpc SearchBooks(SearchBooksRequest) returns (SearchBooksResponse);
+  rpc CheckAvailability(CheckAvailabilityRequest) returns (CheckAvailabilityResponse);
+  rpc DecreaseAvailableCopies(UpdateCopiesRequest) returns (UpdateCopiesResponse);
+  rpc IncreaseAvailableCopies(UpdateCopiesRequest) returns (UpdateCopiesResponse);
+  rpc DeleteBook(DeleteBookRequest) returns (common.StatusResponse);
+}
