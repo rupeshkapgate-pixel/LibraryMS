@@ -9,10 +9,38 @@ import grpc
 from app.database import AsyncSessionLocal
 from app.repositories.lending_repository import LendingRepository
 from app.models.lending import LendingStatus
+from app.observability.logging import get_grpc_correlation_id, log_event
 from app.proto_generated import lending_pb2, lending_pb2_grpc, common_pb2
 from app.proto_generated import book_pb2, book_pb2_grpc, member_pb2, member_pb2_grpc
 
 logger = logging.getLogger(__name__)
+
+_SERVICE = "lending-service"
+
+
+def _log_error(operation: str, context, exc: Exception) -> None:
+    log_event(
+        logger,
+        logging.ERROR,
+        service=_SERVICE,
+        operation=operation,
+        correlation_id=get_grpc_correlation_id(context),
+        message=f"{operation} failed",
+        error=exc,
+    )
+
+
+def _log_info(operation: str, context, message: str, **extra) -> None:
+    log_event(
+        logger,
+        logging.INFO,
+        service=_SERVICE,
+        operation=operation,
+        correlation_id=get_grpc_correlation_id(context),
+        message=message,
+        **extra,
+    )
+
 
 BOOK_SERVICE_HOST = os.getenv("BOOK_SERVICE_HOST", "localhost")
 BOOK_SERVICE_PORT = os.getenv("BOOK_SERVICE_PORT", "50051")
@@ -178,7 +206,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     context.set_details("Failed to decrease available copies")
                     return lending_pb2.LendingRecord()
 
-                logger.info(f"Book borrowed: member={request.member_id} book={request.book_id} record={record.id}")
+                _log_info("BorrowBook", context, "Book borrowed", member_id=request.member_id, book_id=request.book_id, lending_id=str(record.id))
                 return _record_to_proto(
                     record,
                     book_title=book_title,
@@ -187,12 +215,12 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     member_email=member_resp.member.email,
                 )
         except grpc.RpcError as exc:
-            logger.error(f"BorrowBook gRPC error: {exc}")
+            _log_error("BorrowBook", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return lending_pb2.LendingRecord()
         except Exception as exc:
-            logger.error(f"BorrowBook error: {exc}")
+            _log_error("BorrowBook", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return lending_pb2.LendingRecord()
@@ -238,7 +266,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 finally:
                     await member_channel.close()
 
-                logger.info(f"Book returned: record={request.lending_id} fine={returned_record.fine_amount}")
+                _log_info("ReturnBook", context, "Book returned", lending_id=request.lending_id, fine=returned_record.fine_amount)
                 return lending_pb2.ReturnBookResponse(
                     record=_record_to_proto(
                         returned_record,
@@ -252,7 +280,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     overdue_days=overdue_days,
                 )
         except Exception as exc:
-            logger.error(f"ReturnBook error: {exc}")
+            _log_error("ReturnBook", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return lending_pb2.ReturnBookResponse()
@@ -280,7 +308,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     ),
                 )
         except Exception as exc:
-            logger.error(f"ListBorrowedBooks error: {exc}")
+            _log_error("ListBorrowedBooks", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return lending_pb2.ListBorrowedBooksResponse()
@@ -307,7 +335,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     ),
                 )
         except Exception as exc:
-            logger.error(f"ListBorrowedBooksByMember error: {exc}")
+            _log_error("ListBorrowedBooksByMember", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return lending_pb2.ListBorrowedBooksResponse()
@@ -334,7 +362,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     ),
                 )
         except Exception as exc:
-            logger.error(f"ListBookBorrowHistory error: {exc}")
+            _log_error("ListBookBorrowHistory", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return lending_pb2.ListBorrowedBooksResponse()
@@ -357,7 +385,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     ),
                 )
         except Exception as exc:
-            logger.error(f"ListOverdueBooks error: {exc}")
+            _log_error("ListOverdueBooks", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return lending_pb2.ListBorrowedBooksResponse()

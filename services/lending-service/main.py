@@ -9,15 +9,15 @@ import grpc
 from app.grpc_handlers.lending_handler import LendingServiceHandler
 from app.proto_generated import lending_pb2_grpc
 from app.database import engine
+from app.observability.logging import configure_json_logging, log_event
+from app.telemetry.setup import bootstrap
 from app.models.lending import Base
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_json_logging("lending-service")
 logger = logging.getLogger(__name__)
 
 HOST = os.getenv("GRPC_HOST", "0.0.0.0")
+METRICS_PORT = int(os.getenv("METRICS_PORT", "9103"))
 PORT = int(os.getenv("GRPC_PORT", "50053"))
 
 
@@ -35,10 +35,11 @@ async def init_db():
             )
         )
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database initialized")
+    log_event(logger, logging.INFO, service="lending-service", operation="init_db", message="Database initialized")
 
 
 async def serve():
+    bootstrap("lending-service", metrics_port=METRICS_PORT)
     await init_db()
 
     server = grpc.aio.server(
@@ -53,10 +54,10 @@ async def serve():
     listen_addr = f"{HOST}:{PORT}"
     server.add_insecure_port(listen_addr)
     await server.start()
-    logger.info(f"Lending Service started on {listen_addr}")
+    log_event(logger, logging.INFO, service="lending-service", operation="startup", message="Lending Service started", listen_addr=listen_addr)
 
     async def shutdown():
-        logger.info("Shutting down Lending Service...")
+        log_event(logger, logging.INFO, service="lending-service", operation="shutdown", message="Shutting down Lending Service")
         await server.stop(5)
 
     loop = asyncio.get_running_loop()

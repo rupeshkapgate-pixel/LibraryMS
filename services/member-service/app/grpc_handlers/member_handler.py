@@ -7,9 +7,37 @@ import grpc
 from app.database import AsyncSessionLocal
 from app.repositories.member_repository import MemberRepository
 from app.models.member import MembershipStatus
+from app.observability.logging import get_grpc_correlation_id, log_event
 from app.proto_generated import member_pb2, member_pb2_grpc, common_pb2
 
 logger = logging.getLogger(__name__)
+
+_SERVICE = "member-service"
+
+
+def _log_error(operation: str, context, exc: Exception) -> None:
+    log_event(
+        logger,
+        logging.ERROR,
+        service=_SERVICE,
+        operation=operation,
+        correlation_id=get_grpc_correlation_id(context),
+        message=f"{operation} failed",
+        error=exc,
+    )
+
+
+def _log_info(operation: str, context, message: str, **extra) -> None:
+    log_event(
+        logger,
+        logging.INFO,
+        service=_SERVICE,
+        operation=operation,
+        correlation_id=get_grpc_correlation_id(context),
+        message=message,
+        **extra,
+    )
+
 
 
 def _member_to_proto(member) -> member_pb2.Member:
@@ -49,10 +77,10 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     "address": request.address or None,
                 }
                 member = await repo.create(data)
-                logger.info(f"Member created: {member.id}")
+                _log_info("CreateMember", context, "Member created", member_id=str(member.id), email=member.email)
                 return _member_to_proto(member)
         except Exception as exc:
-            logger.error(f"CreateMember error: {exc}")
+            _log_error("CreateMember", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return member_pb2.Member()
@@ -78,7 +106,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     return member_pb2.Member()
                 return _member_to_proto(member)
         except Exception as exc:
-            logger.error(f"UpdateMember error: {exc}")
+            _log_error("UpdateMember", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return member_pb2.Member()
@@ -94,7 +122,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     return member_pb2.Member()
                 return _member_to_proto(member)
         except Exception as exc:
-            logger.error(f"GetMember error: {exc}")
+            _log_error("GetMember", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return member_pb2.Member()
@@ -132,7 +160,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     ),
                 )
         except Exception as exc:
-            logger.error(f"ListMembers error: {exc}")
+            _log_error("ListMembers", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return member_pb2.ListMembersResponse()
@@ -159,7 +187,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     member=_member_to_proto(member),
                 )
         except Exception as exc:
-            logger.error(f"ValidateActiveMember error: {exc}")
+            _log_error("ValidateActiveMember", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return member_pb2.ValidateActiveMemberResponse()
@@ -175,7 +203,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     return member_pb2.Member()
                 return _member_to_proto(member)
         except Exception as exc:
-            logger.error(f"DeactivateMember error: {exc}")
+            _log_error("DeactivateMember", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return member_pb2.Member()

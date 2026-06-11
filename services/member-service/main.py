@@ -9,15 +9,15 @@ import grpc
 from app.grpc_handlers.member_handler import MemberServiceHandler
 from app.proto_generated import member_pb2_grpc
 from app.database import engine
+from app.observability.logging import configure_json_logging, log_event
+from app.telemetry.setup import bootstrap
 from app.models.member import Base
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_json_logging("member-service")
 logger = logging.getLogger(__name__)
 
 HOST = os.getenv("GRPC_HOST", "0.0.0.0")
+METRICS_PORT = int(os.getenv("METRICS_PORT", "9102"))
 PORT = int(os.getenv("GRPC_PORT", "50052"))
 
 
@@ -35,10 +35,11 @@ async def init_db():
             )
         )
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database initialized")
+    log_event(logger, logging.INFO, service="member-service", operation="init_db", message="Database initialized")
 
 
 async def serve():
+    bootstrap("member-service", metrics_port=METRICS_PORT)
     await init_db()
 
     server = grpc.aio.server(
@@ -53,10 +54,10 @@ async def serve():
     listen_addr = f"{HOST}:{PORT}"
     server.add_insecure_port(listen_addr)
     await server.start()
-    logger.info(f"Member Service started on {listen_addr}")
+    log_event(logger, logging.INFO, service="member-service", operation="startup", message="Member Service started", listen_addr=listen_addr)
 
     async def shutdown():
-        logger.info("Shutting down Member Service...")
+        log_event(logger, logging.INFO, service="member-service", operation="shutdown", message="Shutting down Member Service")
         await server.stop(5)
 
     loop = asyncio.get_running_loop()

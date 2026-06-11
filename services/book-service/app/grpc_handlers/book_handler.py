@@ -6,9 +6,37 @@ import grpc
 
 from app.database import AsyncSessionLocal
 from app.repositories.book_repository import BookRepository
+from app.observability.logging import get_grpc_correlation_id, log_event
 from app.proto_generated import book_pb2, book_pb2_grpc, common_pb2
 
 logger = logging.getLogger(__name__)
+
+_SERVICE = "book-service"
+
+
+def _log_error(operation: str, context, exc: Exception) -> None:
+    log_event(
+        logger,
+        logging.ERROR,
+        service=_SERVICE,
+        operation=operation,
+        correlation_id=get_grpc_correlation_id(context),
+        message=f"{operation} failed",
+        error=exc,
+    )
+
+
+def _log_info(operation: str, context, message: str, **extra) -> None:
+    log_event(
+        logger,
+        logging.INFO,
+        service=_SERVICE,
+        operation=operation,
+        correlation_id=get_grpc_correlation_id(context),
+        message=message,
+        **extra,
+    )
+
 
 
 def _book_to_proto(book) -> book_pb2.Book:
@@ -54,10 +82,10 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     "shelf_location": request.shelf_location,
                 }
                 book = await repo.create(data)
-                logger.info(f"Book created: {book.id}")
+                _log_info("CreateBook", context, "Book created", book_id=str(book.id), isbn=book.isbn)
                 return _book_to_proto(book)
         except Exception as exc:
-            logger.error(f"CreateBook error: {exc}")
+            _log_error("CreateBook", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return book_pb2.Book()
@@ -93,7 +121,7 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     return book_pb2.Book()
                 return _book_to_proto(book)
         except Exception as exc:
-            logger.error(f"UpdateBook error: {exc}")
+            _log_error("UpdateBook", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return book_pb2.Book()
@@ -109,7 +137,7 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     return book_pb2.Book()
                 return _book_to_proto(book)
         except Exception as exc:
-            logger.error(f"GetBook error: {exc}")
+            _log_error("GetBook", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return book_pb2.Book()
@@ -138,7 +166,7 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     ),
                 )
         except Exception as exc:
-            logger.error(f"ListBooks error: {exc}")
+            _log_error("ListBooks", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return book_pb2.ListBooksResponse()
@@ -166,7 +194,7 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     ),
                 )
         except Exception as exc:
-            logger.error(f"SearchBooks error: {exc}")
+            _log_error("SearchBooks", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return book_pb2.SearchBooksResponse()
@@ -185,7 +213,7 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     available_copies=book.available_copies,
                 )
         except Exception as exc:
-            logger.error(f"CheckAvailability error: {exc}")
+            _log_error("CheckAvailability", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return book_pb2.CheckAvailabilityResponse()
@@ -204,7 +232,7 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     available_copies=book.available_copies,
                 )
         except Exception as exc:
-            logger.error(f"DecreaseAvailableCopies error: {exc}")
+            _log_error("DecreaseAvailableCopies", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return book_pb2.UpdateCopiesResponse()
@@ -223,7 +251,7 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     available_copies=book.available_copies,
                 )
         except Exception as exc:
-            logger.error(f"IncreaseAvailableCopies error: {exc}")
+            _log_error("IncreaseAvailableCopies", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return book_pb2.UpdateCopiesResponse()
@@ -239,7 +267,7 @@ class BookServiceHandler(book_pb2_grpc.BookServiceServicer):
                     return common_pb2.StatusResponse(success=False, message="Book not found")
                 return common_pb2.StatusResponse(success=True, message="Book deleted")
         except Exception as exc:
-            logger.error(f"DeleteBook error: {exc}")
+            _log_error("DeleteBook", context, exc)
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))
             return common_pb2.StatusResponse(success=False, message=str(exc))

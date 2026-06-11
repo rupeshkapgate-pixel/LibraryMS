@@ -2,7 +2,7 @@
 import logging
 
 import grpc
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.grpc_clients import get_lending_channel, GRPC_TIMEOUT
 from app.schemas import (
@@ -12,6 +12,11 @@ from app.schemas import (
 from app.grpc_clients.proto_generated import lending_pb2, lending_pb2_grpc, common_pb2
 
 logger = logging.getLogger(__name__)
+
+
+def grpc_metadata(request: Request) -> list[tuple[str, str]]:
+    correlation_id = getattr(request.state, "correlation_id", "-")
+    return [("x-correlation-id", correlation_id)] if correlation_id and correlation_id != "-" else []
 router = APIRouter(prefix="/api/v1/lending", tags=["Lending"])
 
 STATUS_TEXT = {0: "BORROWED", 1: "RETURNED", 2: "OVERDUE"}
@@ -48,7 +53,7 @@ def _proto_to_record(r) -> LendingRecordResponse:
 
 
 @router.post("/borrow", response_model=LendingRecordResponse, status_code=status.HTTP_201_CREATED)
-async def borrow_book(body: BorrowRequest):
+async def borrow_book(body: BorrowRequest, request: Request):
     try:
         async with get_lending_channel() as channel:
             stub = lending_pb2_grpc.LendingServiceStub(channel)
@@ -59,6 +64,7 @@ async def borrow_book(body: BorrowRequest):
                     due_days=body.due_days,
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return _proto_to_record(resp)
     except grpc.RpcError as e:
@@ -66,13 +72,14 @@ async def borrow_book(body: BorrowRequest):
 
 
 @router.post("/return", response_model=ReturnResponse)
-async def return_book(body: ReturnRequest):
+async def return_book(body: ReturnRequest, request: Request):
     try:
         async with get_lending_channel() as channel:
             stub = lending_pb2_grpc.LendingServiceStub(channel)
             resp = await stub.ReturnBook(
                 lending_pb2.ReturnBookRequest(lending_id=body.lending_id),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return ReturnResponse(
                 record=_proto_to_record(resp.record),
@@ -86,6 +93,7 @@ async def return_book(body: ReturnRequest):
 
 @router.get("/borrowed", response_model=PaginatedResponse[LendingRecordResponse])
 async def list_borrowed_books(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     sort_by: str = "borrowed_at",
@@ -101,6 +109,7 @@ async def list_borrowed_books(
                     sort_order=sort_order,
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return PaginatedResponse(
                 data=[_proto_to_record(r) for r in resp.records],
@@ -118,6 +127,7 @@ async def list_borrowed_books(
 @router.get("/member/{member_id}", response_model=PaginatedResponse[LendingRecordResponse])
 async def list_borrowed_by_member(
     member_id: str,
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
@@ -130,6 +140,7 @@ async def list_borrowed_by_member(
                     pagination=common_pb2.PaginationRequest(page=page, page_size=page_size),
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return PaginatedResponse(
                 data=[_proto_to_record(r) for r in resp.records],
@@ -147,6 +158,7 @@ async def list_borrowed_by_member(
 @router.get("/book/{book_id}/history", response_model=PaginatedResponse[LendingRecordResponse])
 async def list_book_borrow_history(
     book_id: str,
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
@@ -159,6 +171,7 @@ async def list_book_borrow_history(
                     pagination=common_pb2.PaginationRequest(page=page, page_size=page_size),
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return PaginatedResponse(
                 data=[_proto_to_record(r) for r in resp.records],
@@ -175,6 +188,7 @@ async def list_book_borrow_history(
 
 @router.get("/overdue", response_model=PaginatedResponse[LendingRecordResponse])
 async def list_overdue_books(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
@@ -186,6 +200,7 @@ async def list_overdue_books(
                     pagination=common_pb2.PaginationRequest(page=page, page_size=page_size),
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return PaginatedResponse(
                 data=[_proto_to_record(r) for r in resp.records],

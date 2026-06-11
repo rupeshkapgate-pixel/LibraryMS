@@ -2,13 +2,18 @@
 import logging
 
 import grpc
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.grpc_clients import get_member_channel, GRPC_TIMEOUT
 from app.schemas import MemberCreate, MemberUpdate, MemberResponse, PaginatedResponse, PaginationMeta
 from app.grpc_clients.proto_generated import member_pb2, member_pb2_grpc, common_pb2
 
 logger = logging.getLogger(__name__)
+
+
+def grpc_metadata(request: Request) -> list[tuple[str, str]]:
+    correlation_id = getattr(request.state, "correlation_id", "-")
+    return [("x-correlation-id", correlation_id)] if correlation_id and correlation_id != "-" else []
 router = APIRouter(prefix="/api/v1/members", tags=["Members"])
 
 STATUS_MAP = {
@@ -39,7 +44,7 @@ def _proto_to_member(m) -> MemberResponse:
 
 
 @router.post("", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
-async def create_member(body: MemberCreate):
+async def create_member(body: MemberCreate, request: Request):
     try:
         async with get_member_channel() as channel:
             stub = member_pb2_grpc.MemberServiceStub(channel)
@@ -51,6 +56,7 @@ async def create_member(body: MemberCreate):
                     address=body.address or "",
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return _proto_to_member(resp)
     except grpc.RpcError as e:
@@ -59,6 +65,7 @@ async def create_member(body: MemberCreate):
 
 @router.get("", response_model=PaginatedResponse[MemberResponse])
 async def list_members(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     sort_by: str = "created_at",
@@ -74,6 +81,7 @@ async def list_members(
                     sort_order=sort_order,
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return PaginatedResponse(
                 data=[_proto_to_member(m) for m in resp.members],
@@ -89,13 +97,14 @@ async def list_members(
 
 
 @router.get("/{member_id}", response_model=MemberResponse)
-async def get_member(member_id: str):
+async def get_member(member_id: str, request: Request):
     try:
         async with get_member_channel() as channel:
             stub = member_pb2_grpc.MemberServiceStub(channel)
             resp = await stub.GetMember(
                 member_pb2.GetMemberRequest(id=member_id),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return _proto_to_member(resp)
     except grpc.RpcError as e:
@@ -103,7 +112,7 @@ async def get_member(member_id: str):
 
 
 @router.put("/{member_id}", response_model=MemberResponse)
-async def update_member(member_id: str, body: MemberUpdate):
+async def update_member(member_id: str, body: MemberUpdate, request: Request):
     try:
         async with get_member_channel() as channel:
             stub = member_pb2_grpc.MemberServiceStub(channel)
@@ -116,6 +125,7 @@ async def update_member(member_id: str, body: MemberUpdate):
                     address=body.address or "",
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
             return _proto_to_member(resp)
     except grpc.RpcError as e:
@@ -123,13 +133,14 @@ async def update_member(member_id: str, body: MemberUpdate):
 
 
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def deactivate_member(member_id: str):
+async def deactivate_member(member_id: str, request: Request):
     try:
         async with get_member_channel() as channel:
             stub = member_pb2_grpc.MemberServiceStub(channel)
             await stub.DeactivateMember(
                 member_pb2.DeactivateMemberRequest(id=member_id),
                 timeout=GRPC_TIMEOUT,
+                metadata=grpc_metadata(request),
             )
     except grpc.RpcError as e:
         grpc_error_to_http(e)

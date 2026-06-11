@@ -6,16 +6,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.middleware import CorrelationIdMiddleware
+from app.observability.logging import configure_json_logging, log_event
 from app.routers import books_router, members_router, lending_router
 from app.grpc_clients import get_book_channel, get_member_channel, get_lending_channel, GRPC_TIMEOUT
 from app.grpc_clients.proto_generated import book_pb2_grpc, member_pb2_grpc, lending_pb2_grpc
 from app.schemas import HealthResponse, DashboardStats
 from app.grpc_clients.proto_generated import common_pb2
+from app.telemetry.setup import setup_tracing, instrument_fastapi
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+configure_json_logging("api-gateway")
+setup_tracing("api-gateway")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -41,6 +41,7 @@ app.add_middleware(CorrelationIdMiddleware)
 app.include_router(books_router)
 app.include_router(members_router)
 app.include_router(lending_router)
+instrument_fastapi(app)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
@@ -52,8 +53,9 @@ async def health_check():
             async with channel_fn() as ch:
                 await ch.channel_ready()
             services[name] = "healthy"
-        except Exception:
+        except Exception as exc:
             services[name] = "unhealthy"
+            log_event(logger, logging.WARNING, service="api-gateway", operation="health_check", message=f"{name} health check failed", error=exc)
 
     await check("book_service", get_book_channel, book_pb2_grpc.BookServiceStub)
     await check("member_service", get_member_channel, member_pb2_grpc.MemberServiceStub)

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ── PostgreSQL ────────────────────────────────────────────────────────────
   postgres:
@@ -35,8 +33,11 @@ services:
       GRPC_HOST: 0.0.0.0
       GRPC_PORT: 50051
       DB_ECHO: "false"
+      METRICS_PORT: 9101
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "50051:50051"
+      - "9101:9101"
     depends_on:
       postgres:
         condition: service_healthy
@@ -60,8 +61,11 @@ services:
       GRPC_HOST: 0.0.0.0
       GRPC_PORT: 50052
       DB_ECHO: "false"
+      METRICS_PORT: 9102
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "50052:50052"
+      - "9102:9102"
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,8 +93,11 @@ services:
       MEMBER_SERVICE_HOST: member-service
       MEMBER_SERVICE_PORT: 50052
       DB_ECHO: "false"
+      METRICS_PORT: 9103
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "50053:50053"
+      - "9103:9103"
     depends_on:
       postgres:
         condition: service_healthy
@@ -118,6 +125,7 @@ services:
       ALLOWED_ORIGINS: "http://localhost:3000,http://frontend:3000"
       GRPC_TIMEOUT: 30
       PORT: 8000
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
     ports:
       - "8000:8000"
     depends_on:
@@ -143,8 +151,101 @@ services:
     networks:
       - lms-network
 
+
+  # ── Observability: Metrics ────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: lms-prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - api-gateway
+      - book-service
+      - member-service
+      - lending-service
+    networks:
+      - lms-network
+
+  # ── Observability: Centralized Logs ────────────────────────────────────────
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: lms-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - lms-network
+
+  promtail:
+    image: grafana/promtail:3.5.0
+    container_name: lms-promtail
+    command: -config.file=/etc/promtail/config.yml
+    environment:
+      - DOCKER_API_VERSION=1.44
+    volumes:
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - loki
+    networks:
+      - lms-network
+
+  # ── Observability: Tracing ─────────────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: lms-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - lms-network
+
+  # ── Observability: Dashboard ───────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.3
+    container_name: lms-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+    networks:
+      - lms-network
+
 volumes:
   postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  loki_data:
+    driver: local
+  grafana_data:
     driver: local
 
 networks:

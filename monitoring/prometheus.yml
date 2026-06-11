@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: api-gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api-gateway:8000"]
+
+  - job_name: book-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["book-service:9101"]
+
+  - job_name: member-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["member-service:9102"]
+
+  - job_name: lending-service
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["lending-service:9103"]
