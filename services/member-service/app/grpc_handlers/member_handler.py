@@ -51,10 +51,10 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                 member = await repo.create(data)
                 logger.info(f"Member created: {member.id}")
                 return _member_to_proto(member)
-        except Exception:
-            logger.error(f"CreateMember error: {e}")
+        except Exception as exc:
+            logger.error(f"CreateMember error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return member_pb2.Member()
 
     async def UpdateMember(self, request, context):
@@ -77,10 +77,10 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     context.set_details(f"Member {request.id} not found")
                     return member_pb2.Member()
                 return _member_to_proto(member)
-        except Exception:
-            logger.error(f"UpdateMember error: {e}")
+        except Exception as exc:
+            logger.error(f"UpdateMember error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return member_pb2.Member()
 
     async def GetMember(self, request, context):
@@ -93,10 +93,10 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     context.set_details(f"Member {request.id} not found")
                     return member_pb2.Member()
                 return _member_to_proto(member)
-        except Exception:
-            logger.error(f"GetMember error: {e}")
+        except Exception as exc:
+            logger.error(f"GetMember error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return member_pb2.Member()
 
     async def ListMembers(self, request, context):
@@ -131,10 +131,10 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception:
-            logger.error(f"ListMembers error: {e}")
+        except Exception as exc:
+            logger.error(f"ListMembers error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return member_pb2.ListMembersResponse()
 
     async def ValidateActiveMember(self, request, context):
@@ -158,10 +158,10 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     message="Member is active",
                     member=_member_to_proto(member),
                 )
-        except Exception:
-            logger.error(f"ValidateActiveMember error: {e}")
+        except Exception as exc:
+            logger.error(f"ValidateActiveMember error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return member_pb2.ValidateActiveMemberResponse()
 
     async def DeactivateMember(self, request, context):
@@ -174,8 +174,8 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     context.set_details(f"Member {request.id} not found")
                     return member_pb2.Member()
                 return _member_to_proto(member)
-        except Exception:
-            logger.error(f"DeactivateMember error: {e}")
+        except Exception as exc:
+            logger.error(f"DeactivateMember error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return member_pb2.Member()

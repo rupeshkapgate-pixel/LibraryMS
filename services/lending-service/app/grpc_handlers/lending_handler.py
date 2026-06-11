@@ -112,14 +112,14 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     member_email=member_resp.member.email,
                 )
         except grpc.RpcError as e:
-            logger.error(f"BorrowBook gRPC error: {e}")
+            logger.error(f"BorrowBook gRPC error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return lending_pb2.LendingRecord()
-        except Exception:
-            logger.error(f"BorrowBook error: {e}")
+        except Exception as exc:
+            logger.error(f"BorrowBook error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return lending_pb2.LendingRecord()
 
     async def ReturnBook(self, request, context):
@@ -162,10 +162,10 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     is_overdue=is_overdue,
                     overdue_days=overdue_days,
                 )
-        except Exception:
-            logger.error(f"ReturnBook error: {e}")
+        except Exception as exc:
+            logger.error(f"ReturnBook error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return lending_pb2.ReturnBookResponse()
 
     async def ListBorrowedBooks(self, request, context):
@@ -190,10 +190,10 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception:
-            logger.error(f"ListBorrowedBooks error: {e}")
+        except Exception as exc:
+            logger.error(f"ListBorrowedBooks error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return lending_pb2.ListBorrowedBooksResponse()
 
     async def ListBorrowedBooksByMember(self, request, context):
@@ -217,10 +217,10 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception:
-            logger.error(f"ListBorrowedBooksByMember error: {e}")
+        except Exception as exc:
+            logger.error(f"ListBorrowedBooksByMember error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return lending_pb2.ListBorrowedBooksResponse()
 
     async def ListBookBorrowHistory(self, request, context):
@@ -244,10 +244,10 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception:
-            logger.error(f"ListBookBorrowHistory error: {e}")
+        except Exception as exc:
+            logger.error(f"ListBookBorrowHistory error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return lending_pb2.ListBorrowedBooksResponse()
 
     async def ListOverdueBooks(self, request, context):
@@ -267,8 +267,8 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception:
-            logger.error(f"ListOverdueBooks error: {e}")
+        except Exception as exc:
+            logger.error(f"ListOverdueBooks error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(e))
+            context.set_details(str(exc))
             return lending_pb2.ListBorrowedBooksResponse()

@@ -4,7 +4,7 @@ import type { BookCreate } from "@/types";
 
 interface BookFormProps {
   initialData?: Partial<BookCreate>;
-  onSubmit: (data: BookCreate) => Promise<void>;
+  onSubmit: (data: BookCreate) => Promise<unknown>;
   submitLabel?: string;
   loading?: boolean;
 }
