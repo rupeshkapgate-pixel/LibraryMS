@@ -1,7 +1,6 @@
 """Pydantic schemas for API Gateway."""
-from datetime import datetime
 from typing import List, Optional, Generic, TypeVar
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 

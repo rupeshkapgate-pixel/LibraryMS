@@ -111,7 +111,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     member_name=member_resp.member.full_name,
                     member_email=member_resp.member.email,
                 )
-        except grpc.RpcError as e:
+        except grpc.RpcError as exc:
             logger.error(f"BorrowBook gRPC error: {exc}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(exc))

@@ -1,11 +1,17 @@
 """Tests for API Gateway REST endpoints."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi.testclient import TestClient
 
 # We test schemas and validation logic
-from services.api_gateway.app.schemas.schemas import (
-    BookCreate, BookUpdate, MemberCreate, BorrowRequest, ReturnRequest
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
+
+from schemas.schemas import (
+    BookCreate,
+    MemberCreate,
+    BorrowRequest,
+    ReturnRequest,
 )
 import pydantic
 

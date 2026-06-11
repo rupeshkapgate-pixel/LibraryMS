@@ -47,7 +47,7 @@ class BookService:
                 book = await self._repo.create_no_commit(data)
             DB_QUERY_COUNTER.labels(service=_SVC, operation="create_book", status="ok").inc()
             return book
-        except Exception as exc:
+        except Exception:
             DB_QUERY_COUNTER.labels(service=_SVC, operation="create_book", status="error").inc()
             raise
         finally:
@@ -70,7 +70,7 @@ class BookService:
                 book.updated_at = datetime.utcnow()
             DB_QUERY_COUNTER.labels(service=_SVC, operation="update_book", status="ok").inc()
             return book
-        except Exception as exc:
+        except Exception:
             DB_QUERY_COUNTER.labels(service=_SVC, operation="update_book", status="error").inc()
             raise
         finally:
@@ -143,7 +143,7 @@ class BookService:
                 # Transaction commits automatically on context-manager exit
             DB_QUERY_COUNTER.labels(service=_SVC, operation="decrease_copies", status="ok").inc()
             return book.available_copies
-        except Exception as exc:
+        except Exception:
             DB_QUERY_COUNTER.labels(service=_SVC, operation="decrease_copies", status="error").inc()
             raise
         finally:
@@ -168,7 +168,7 @@ class BookService:
                 book.updated_at = datetime.utcnow()
             DB_QUERY_COUNTER.labels(service=_SVC, operation="increase_copies", status="ok").inc()
             return book.available_copies
-        except Exception as exc:
+        except Exception:
             DB_QUERY_COUNTER.labels(service=_SVC, operation="increase_copies", status="error").inc()
             raise
         finally:

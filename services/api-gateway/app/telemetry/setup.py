@@ -12,7 +12,6 @@ from __future__ import annotations
 import logging
 import os
 
-import grpc
 from opentelemetry import trace, propagate
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor

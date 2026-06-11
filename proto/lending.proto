@@ -4,7 +4,6 @@ package lending;
 
 import "common.proto";
 
-option python_out = ".";
 
 enum LendingStatus {
   BORROWED = 0;

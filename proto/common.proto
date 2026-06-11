@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package common;
 
-option python_out = ".";
-
 message PaginationRequest {
   int32 page = 1;
   int32 page_size = 2;

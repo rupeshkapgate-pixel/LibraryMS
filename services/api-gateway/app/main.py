@@ -2,7 +2,6 @@
 import logging
 import os
 
-import grpc
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

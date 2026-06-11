@@ -3,10 +3,13 @@ import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 import pytest
+import sys
+from pathlib import Path
 
-from services.member_service.app.repositories.member_repository import MemberRepository
-from services.member_service.app.models.member import Member, MembershipStatus
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.repositories.member_repository import MemberRepository
+from app.models.member import Member, MembershipStatus
 
 @pytest.fixture
 def mock_session():
