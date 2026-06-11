@@ -12,7 +12,6 @@ can interrogate health via:
 from __future__ import annotations
 
 import logging
-from typing import Callable, Awaitable
 
 from grpc_health.v1 import health_pb2, health_pb2_grpc
 from grpc_health.v1.health import HealthServicer as _BaseHealthServicer

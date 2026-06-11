@@ -12,11 +12,9 @@ from __future__ import annotations
 
 import logging
 import time
-import uuid
 from datetime import datetime
 from typing import Optional, Tuple, List
 
-from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.book import Book
@@ -49,7 +47,7 @@ class BookService:
                 book = await self._repo.create_no_commit(data)
             DB_QUERY_COUNTER.labels(service=_SVC, operation="create_book", status="ok").inc()
             return book
-        except Exception as e:
+        except Exception:
             DB_QUERY_COUNTER.labels(service=_SVC, operation="create_book", status="error").inc()
             raise
         finally:

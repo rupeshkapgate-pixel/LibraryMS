@@ -16,15 +16,13 @@ import threading
 from typing import Callable
 
 import grpc
-from grpc import ServicerContext
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.propagate import extract, inject
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from opentelemetry.propagate import extract
 
 from prometheus_client import (
     Counter,
@@ -32,8 +30,6 @@ from prometheus_client import (
     Gauge,
     generate_latest,
     CONTENT_TYPE_LATEST,
-    CollectorRegistry,
-    REGISTRY,
 )
 from http.server import HTTPServer, BaseHTTPRequestHandler
 

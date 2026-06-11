@@ -51,7 +51,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                 member = await repo.create(data)
                 logger.info(f"Member created: {member.id}")
                 return _member_to_proto(member)
-        except Exception as e:
+        except Exception:
             logger.error(f"CreateMember error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -77,7 +77,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     context.set_details(f"Member {request.id} not found")
                     return member_pb2.Member()
                 return _member_to_proto(member)
-        except Exception as e:
+        except Exception:
             logger.error(f"UpdateMember error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -93,7 +93,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     context.set_details(f"Member {request.id} not found")
                     return member_pb2.Member()
                 return _member_to_proto(member)
-        except Exception as e:
+        except Exception:
             logger.error(f"GetMember error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -131,7 +131,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception as e:
+        except Exception:
             logger.error(f"ListMembers error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -158,7 +158,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     message="Member is active",
                     member=_member_to_proto(member),
                 )
-        except Exception as e:
+        except Exception:
             logger.error(f"ValidateActiveMember error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -174,7 +174,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                     context.set_details(f"Member {request.id} not found")
                     return member_pb2.Member()
                 return _member_to_proto(member)
-        except Exception as e:
+        except Exception:
             logger.error(f"DeactivateMember error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))

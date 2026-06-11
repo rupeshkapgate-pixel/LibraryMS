@@ -116,7 +116,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
             return lending_pb2.LendingRecord()
-        except Exception as e:
+        except Exception:
             logger.error(f"BorrowBook error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -162,7 +162,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                     is_overdue=is_overdue,
                     overdue_days=overdue_days,
                 )
-        except Exception as e:
+        except Exception:
             logger.error(f"ReturnBook error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -190,7 +190,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception as e:
+        except Exception:
             logger.error(f"ListBorrowedBooks error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -217,7 +217,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception as e:
+        except Exception:
             logger.error(f"ListBorrowedBooksByMember error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -244,7 +244,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception as e:
+        except Exception:
             logger.error(f"ListBookBorrowHistory error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
@@ -267,7 +267,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                         total_pages=total_pages,
                     ),
                 )
-        except Exception as e:
+        except Exception:
             logger.error(f"ListOverdueBooks error: {e}")
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(str(e))
