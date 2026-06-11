@@ -7,59 +7,105 @@ on:
     branches: [main, develop]
 
 env:
-  REGISTRY:      ghcr.io
-  IMAGE_PREFIX:  ${{ github.repository_owner }}/lms
-  PYTHON_VER:    "3.11"
-  NODE_VER:      "20"
+  REGISTRY:     ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/lms
+  PYTHON_VER:   "3.11"
+  NODE_VER:     "20"
 
 jobs:
-  # ── Lint ───────────────────────────────────────────────────────────────────
+  # ── Lint Python ─────────────────────────────────────────────────────────────
   lint-python:
     name: Lint Python
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VER }}
-      - run: pip install ruff
-      - name: Lint all services
-        run: |
-          for svc in book-service member-service lending-service api-gateway; do
-            echo "--- ruff: $svc ---"
-            ruff check services/$svc/app/ --ignore E501,E402
-          done
 
+      - name: Install ruff
+        run: pip install ruff
+
+      # Lint each service — ignore E501 (line length) and E402 (import order)
+      # which are common in generated/handler files. All other errors are real failures.
+      - name: Lint book-service
+        run: ruff check services/book-service/app/ --ignore E501,E402
+
+      - name: Lint member-service
+        run: ruff check services/member-service/app/ --ignore E501,E402
+
+      - name: Lint lending-service
+        run: ruff check services/lending-service/app/ --ignore E501,E402
+
+      - name: Lint api-gateway
+        run: ruff check services/api-gateway/app/ --ignore E501,E402
+
+  # ── Lint Frontend ────────────────────────────────────────────────────────────
   lint-frontend:
     name: Lint Frontend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VER }}
-      - run: npm install --legacy-peer-deps
-        working-directory: services/frontend
-      - run: npm run lint
-        working-directory: services/frontend
 
-  # ── Unit Tests ─────────────────────────────────────────────────────────────
+      # Use npm install (not npm ci) — no package-lock.json in repo
+      - name: Install frontend dependencies
+        working-directory: services/frontend
+        run: npm install --legacy-peer-deps
+
+      - name: Lint frontend
+        working-directory: services/frontend
+        run: npm run lint
+
+  # ── Unit Tests ───────────────────────────────────────────────────────────────
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: lint-python
+    needs: lint-python      # only run tests when lint passes
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VER }}
+          cache: pip
 
-      - name: Install proto tools + generate stubs
+      # ── Generate proto stubs ─────────────────────────────────────────────────
+      - name: Install proto tools
+        run: pip install grpcio-tools protobuf
+
+      - name: Generate proto stubs (one file at a time + fix imports)
         run: |
-          pip install grpcio-tools protobuf
-          bash scripts/generate_proto.sh
+          for svc in book-service member-service lending-service; do
+            OUT="services/$svc/app/proto_generated"
+            mkdir -p "$OUT" && touch "$OUT/__init__.py"
+            for proto in common book member lending; do
+              python -m grpc_tools.protoc \
+                -I proto \
+                --python_out="$OUT" \
+                --grpc_python_out="$OUT" \
+                proto/${proto}.proto
+            done
+            python scripts/fix_proto_imports.py "$OUT"
+          done
 
+          GW="services/api-gateway/app/grpc_clients/proto_generated"
+          mkdir -p "$GW" && touch "$GW/__init__.py"
+          for proto in common book member lending; do
+            python -m grpc_tools.protoc \
+              -I proto \
+              --python_out="$GW" \
+              --grpc_python_out="$GW" \
+              proto/${proto}.proto
+          done
+          python scripts/fix_proto_imports.py "$GW"
+
+      # ── Install all service deps ─────────────────────────────────────────────
       - name: Install all service dependencies
         run: |
           pip install pytest pytest-asyncio
@@ -67,44 +113,54 @@ jobs:
             pip install -r services/$svc/requirements.txt
           done
 
-      - name: Run book-service tests
+      # ── Run tests — each step fails CI if tests fail (no || true) ───────────
+      - name: Test book-service
         run: pytest services/book-service/tests/ -v --tb=short
 
-      - name: Run member-service tests
+      - name: Test member-service
         run: pytest services/member-service/tests/ -v --tb=short
 
-      - name: Run lending-service tests
+      - name: Test lending-service
         run: pytest services/lending-service/tests/ -v --tb=short
 
-      - name: Run api-gateway tests
+      - name: Test api-gateway
         run: pytest services/api-gateway/tests/ -v --tb=short
 
-  # ── Frontend Build ─────────────────────────────────────────────────────────
+  # ── Build Frontend ───────────────────────────────────────────────────────────
   build-frontend:
     name: Build Frontend
     runs-on: ubuntu-latest
-    needs: lint-frontend
+    needs: lint-frontend    # only run build when lint passes
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VER }}
-      - run: npm install --legacy-peer-deps
+
+      # npm install (not npm ci — no lock file in repo)
+      - name: Install dependencies
         working-directory: services/frontend
-      - run: npm run build
+        run: npm install --legacy-peer-deps
+
+      - name: Build Next.js
         working-directory: services/frontend
+        run: npm run build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8000
 
-  # ── Docker Build & Push ────────────────────────────────────────────────────
+  # ── Docker Build & Push ──────────────────────────────────────────────────────
   docker-build:
     name: Docker — ${{ matrix.service.name }}
     runs-on: ubuntu-latest
     needs: [test, build-frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     permissions:
       contents: read
       packages: write
+
     strategy:
       fail-fast: false
       matrix:
@@ -114,15 +170,19 @@ jobs:
           - { name: lending-service, dockerfile: services/lending-service/Dockerfile, context: . }
           - { name: api-gateway,     dockerfile: services/api-gateway/Dockerfile,     context: . }
           - { name: frontend,        dockerfile: services/frontend/Dockerfile,        context: services/frontend }
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: docker/setup-buildx-action@v3
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -132,6 +192,7 @@ jobs:
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -143,16 +204,18 @@ jobs:
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
-  # ── Security Scan ──────────────────────────────────────────────────────────
+  # ── Security Scan ─────────────────────────────────────────────────────────────
   security-scan:
     name: Trivy — ${{ matrix.service }}
     runs-on: ubuntu-latest
     needs: docker-build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     strategy:
       fail-fast: false
       matrix:
         service: [book-service, member-service, lending-service, api-gateway, frontend]
+
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -163,7 +226,8 @@ jobs:
           severity:       CRITICAL,HIGH
           ignore-unfixed: true
           exit-code:      "0"
-      - name: Upload SARIF
+
+      - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: "trivy-${{ matrix.service }}.sarif"

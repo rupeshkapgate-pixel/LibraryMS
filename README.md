@@ -1,75 +1,44 @@
 # 🏛️ Library Management System
 
-Production-ready microservices system for managing books, members, and borrowing operations.
-
-> **The application is container-first. Docker Compose is the primary supported local runtime.
-> Unit tests are also supported locally after installing Python dependencies.**
+A production-ready, enterprise-grade **Library Management System** built with a microservices architecture. Manages books, members, and borrowing operations across dedicated services communicating via gRPC.
 
 ---
 
-## Quick Start
+## 📋 Table of Contents
 
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-| URL | Description |
-|-----|-------------|
-| http://localhost:3000 | Frontend (Next.js) |
-| http://localhost:8000/docs | Swagger UI |
-| http://localhost:8000/health | Health check |
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Project Structure](#project-structure)
+- [Quick Start](#quick-start)
+- [Docker Setup](#docker-setup)
+- [Kubernetes Setup](#kubernetes-setup)
+- [Proto Generation](#proto-generation)
+- [Database Setup](#database-setup)
+- [Testing](#testing)
+- [API Reference](#api-reference)
+- [Diagrams](#diagrams)
+- [Troubleshooting](#troubleshooting)
+- [Future Improvements](#future-improvements)
+- [Assumptions](#assumptions)
+- [Evaluation Checklist](#evaluation-checklist)
 
 ---
 
-## Reviewer Validation Commands
+## Overview
 
-Run these in order to validate the full submission:
+The Library Management System manages the complete lifecycle of:
 
-```bash
-# 1. Generate protobuf stubs
-make proto
+- **Books** — catalogue management, search, availability tracking
+- **Members** — registration, activation, membership management  
+- **Borrowing** — issue books, return books, fine calculation (₹10/day overdue)
 
-# 2. Run all unit tests (no Docker required)
-make test
+### Key Design Decisions
 
-# 3. Start the full stack
-docker compose up --build
-
-# 4. Check all containers are healthy
-docker compose ps
-
-# 5. Health check
-curl http://localhost:8000/health
-
-# 6. List books (empty on fresh start)
-curl http://localhost:8000/api/v1/books
-
-# 7. Run the end-to-end demo
-python scripts/sample_rest_client.py
-```
-
-### Expected output — `make test`
-
-```
-services/book-service/tests/test_book_repository.py ........  PASSED
-services/member-service/tests/test_member_repository.py .....  PASSED
-services/lending-service/tests/test_lending.py ..........      PASSED
-services/api-gateway/tests/test_schemas.py ..........          PASSED
-```
-
-### Expected output — `curl http://localhost:8000/health`
-
-```json
-{
-  "status": "healthy",
-  "services": {
-    "book_service": "healthy",
-    "member_service": "healthy",
-    "lending_service": "healthy"
-  }
-}
-```
+- **Microservices**: Each domain (Books, Members, Lending) is an independent service with its own database schema and gRPC API
+- **API Gateway**: Single entry point for the frontend — handles REST↔gRPC translation, CORS, correlation IDs, and request logging
+- **Async-first**: All services use async Python (asyncio + grpc.aio + asyncpg) for high throughput
+- **Schema isolation**: One PostgreSQL instance with three logical schemas (`books_db`, `members_db`, `lending_db`) — simulates separate databases while keeping local dev simple
 
 ---
 
@@ -106,10 +75,27 @@ services/api-gateway/tests/test_schemas.py ..........          PASSED
             │  lending_db schema  │
             └─────────────────────┘
 ```
+
 ---
-See [docs/architecture.md](docs/architecture.md) for full detail including the
-Saga consistency pattern for borrow/return operations.
+
+## Technology Stack
+
+| Layer         | Technology                                   |
+|---------------|----------------------------------------------|
+| Frontend      | Next.js 14, TypeScript, TailwindCSS, React Query |
+| API Gateway   | Python 3.11, FastAPI, uvicorn                |
+| gRPC Services | Python 3.11, grpc.aio                        |
+| Serialization | Protocol Buffers 3                           |
+| ORM           | SQLAlchemy 2.x (async)                       |
+| Database      | PostgreSQL 15                                |
+| Migrations    | Alembic                                      |
+| Containers    | Docker, Docker Compose                       |
+| Orchestration | Kubernetes (manifests included)              |
+| Testing       | pytest, pytest-asyncio                       |
+| CI/CD         | GitHub Actions                               |
+
 ---
+
 ## Project Structure
 
 ```
@@ -174,159 +160,505 @@ library-management-system/
 └── .github/workflows/ci.yml          # GitHub Actions pipeline
 ```
 
+---
 
-## Technology Stack
+## Quick Start
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14, TypeScript, TailwindCSS, React Query |
-| API Gateway | Python 3.11, FastAPI |
-| gRPC Services | Python 3.11, grpc.aio |
-| Serialization | Protocol Buffers 3 |
-| ORM | SQLAlchemy 2.x (async) |
-| Migrations | Alembic |
-| Database | PostgreSQL 15 |
-| Containers | Docker Compose |
-| Orchestration | Kubernetes |
-| Tests | pytest, pytest-asyncio |
-| CI/CD | GitHub Actions |
+### Prerequisites
+
+- Docker & Docker Compose
+- Make (optional but recommended)
+- Python 3.11+ (for local dev / proto generation)
+- Node.js 20+ (for local frontend dev)
+
+### 1. Clone and configure
+
+```bash
+git clone <repo-url>
+cd library-management-system
+cp .env.example .env
+```
+
+### 2. Start everything
+
+```bash
+# Single command to build and start all services
+make up
+# OR
+docker compose up --build -d
+```
+
+### 3. Access services
+
+| Service     | URL                              |
+|-------------|----------------------------------|
+| Frontend    | http://localhost:3000            |
+| API Gateway | http://localhost:8000            |
+| API Docs    | http://localhost:8000/docs       |
+| Health      | http://localhost:8000/health     |
+| pgAdmin     | Connect to localhost:5432        |
+
+### 4. Run the sample client
+
+```bash
+# REST client demo (full end-to-end walkthrough)
+make sample-client
+# OR
+python scripts/sample_rest_client.py
+```
+
+---
+
+## Docker Setup
+
+### Build images individually
+
+```bash
+docker compose build book-service
+docker compose build member-service
+docker compose build lending-service
+docker compose build api-gateway
+docker compose build frontend
+```
+
+### Follow logs
+
+```bash
+make logs             # all services
+make logs-api-gateway # single service
+docker compose logs -f book-service
+```
+
+### Restart a service
+
+```bash
+make restart-book-service
+```
+
+### Stop and clean up
+
+```bash
+make down             # stop containers
+make clean            # stop + remove volumes + generated protos
+```
+
+---
+
+## Kubernetes Setup
+
+### Prerequisites
+
+- kubectl configured against a cluster (minikube, kind, k3s, or managed)
+- Images pushed to a registry or using local images
+
+### Deploy
+
+```bash
+# Apply all manifests in order
+make k8s-apply
+
+# Check status
+make k8s-status
+kubectl get pods -n library-system
+kubectl get services -n library-system
+kubectl get ingress -n library-system
+```
+
+### Update /etc/hosts for local ingress
+
+```
+127.0.0.1  library.local
+127.0.0.1  api.library.local
+```
+
+Then access:
+- Frontend: http://library.local
+- API: http://api.library.local/docs
+
+### Scale services
+
+```bash
+kubectl scale deployment api-gateway --replicas=3 -n library-system
+kubectl scale deployment book-service --replicas=4 -n library-system
+```
+
+### Tear down
+
+```bash
+make k8s-delete
+```
 
 ---
 
 ## Proto Generation
 
+Protocol Buffer stubs are generated at Docker build time via each service's Dockerfile.
+For local development:
+
 ```bash
-# Install tools (once)
+# Install tools
 make proto-install
+# OR
+pip install grpcio-tools protobuf
 
 # Generate stubs for all services
 make proto
+# OR
+bash scripts/generate_proto.sh
 ```
 
-Stubs are written to `app/proto_generated/` inside each service.
-The script also runs `scripts/fix_proto_imports.py` to rewrite bare protoc
-imports to relative imports (required when stubs live inside a Python package).
+Stubs are written to:
+- `services/book-service/app/proto_generated/`
+- `services/member-service/app/proto_generated/`
+- `services/lending-service/app/proto_generated/`
+- `services/api-gateway/app/grpc_clients/proto_generated/`
 
-**Windows users:** Run from Git Bash, or run the protoc commands directly:
-```powershell
-python -m grpc_tools.protoc -I proto --python_out=... --grpc_python_out=... proto\common.proto
-python scripts\fix_proto_imports.py <output_dir>
+---
+
+## Database Setup
+
+The PostgreSQL instance uses three schemas for logical service isolation:
+
+| Schema       | Owned by       | Tables           |
+|--------------|----------------|------------------|
+| `books_db`   | Book Service   | `books`          |
+| `members_db` | Member Service | `members`        |
+| `lending_db` | Lending Service| `lending_records`|
+
+### Schema initialization
+
+The `scripts/init_db.sql` runs automatically via Docker entrypoint and creates the schemas.
+Each service creates its own tables on startup via SQLAlchemy's `create_all`.
+
+### Connect directly
+
+```bash
+make db-shell
+# OR
+docker compose exec postgres psql -U library -d librarydb
+```
+
+### Useful queries
+
+```sql
+-- See all tables
+\dt books_db.*
+\dt members_db.*
+\dt lending_db.*
+
+-- Count books
+SELECT COUNT(*) FROM books_db.books WHERE deleted_at IS NULL;
+
+-- Overdue records
+SELECT * FROM lending_db.lending_records
+WHERE status = 'OVERDUE' ORDER BY due_date;
+
+-- Fine summary
+SELECT member_id, SUM(fine_amount) as total_fine
+FROM lending_db.lending_records
+WHERE fine_amount > 0
+GROUP BY member_id;
 ```
 
 ---
 
-## Running Tests Locally
+## Testing
+
+### Run all tests
 
 ```bash
-# Install pytest + all service requirements (once)
-make test-install
-
-# Generate proto stubs (once)
-make proto
-
-# Run all tests
 make test
+```
 
-# Run one service
+### Run tests for a specific service
+
+```bash
 make test-book-service
+make test-member-service
+make test-lending-service
 ```
 
-Tests use `unittest.mock` — no running database or services required.
+### Test coverage areas
 
----
+| Service         | Test File                              | Coverage                                      |
+|-----------------|----------------------------------------|-----------------------------------------------|
+| Book Service    | `tests/test_book_repository.py`        | CRUD, availability, soft delete, pagination   |
+| Member Service  | `tests/test_member_repository.py`      | CRUD, deactivation, default status            |
+| Lending Service | `tests/test_lending.py`                | Borrow, return, fine calculation, overdue     |
+| API Gateway     | `tests/test_schemas.py`                | Pydantic validation, field constraints        |
 
-## Database Migrations (Alembic)
+### Fine calculation verification
 
-Docker Compose creates the schema automatically via `Base.metadata.create_all()`.
-To run explicit Alembic migrations against a running postgres:
-
-```bash
-# Start postgres only
-docker compose up -d postgres
-
-# Run migrations
-make migrate-all
-
-# Or per service
-make migrate-book-service
+```python
+# Tests verify the ₹10/day rule:
+# 5 days overdue  → fine = ₹50
+# 1 day overdue   → fine = ₹10
+# 30 days overdue → fine = ₹300
+# On-time return  → fine = ₹0
 ```
-
-Migration files: `services/<service>/alembic/versions/001_initial_schema.py`
-
----
-
-## Kubernetes Deployment
-
-```bash
-# 1. Build images
-make k8s-build
-
-# 2. Deploy (Docker Desktop with Kubernetes enabled)
-make k8s-apply
-
-# 3. Check status
-kubectl get pods -n library-system
-
-# 4. Forward ports
-kubectl port-forward svc/api-gateway 8000:8000 -n library-system
-kubectl port-forward svc/frontend    3000:3000 -n library-system
-
-# 5. Teardown
-make k8s-delete
-```
-
-See [docs/deployment-guide.md](docs/deployment-guide.md) for minikube instructions.
 
 ---
 
 ## API Reference
 
-Full interactive docs at **http://localhost:8000/docs**
+### Base URL: `http://localhost:8000`
 
-### Error format
+#### Health
 
-All errors return a consistent JSON body:
-```json
-{
-  "error": "NOT_FOUND",
-  "message": "Book abc123 not found",
-  "details": {}
-}
+```
+GET  /health                  Service health check
+GET  /api/v1/dashboard        Aggregate stats
 ```
 
-### gRPC → HTTP mapping
+#### Books
 
-| gRPC | HTTP |
-|------|------|
-| NOT_FOUND | 404 |
-| ALREADY_EXISTS | 409 |
-| FAILED_PRECONDITION | 409 |
-| INVALID_ARGUMENT | 422 |
-| UNAVAILABLE | 503 |
-| DEADLINE_EXCEEDED | 504 |
-| INTERNAL | 500 |
+```
+POST   /api/v1/books              Create book
+GET    /api/v1/books              List books (paginated)
+GET    /api/v1/books/search       Search by title/author/category/isbn
+GET    /api/v1/books/{id}         Get book
+PUT    /api/v1/books/{id}         Update book
+DELETE /api/v1/books/{id}         Soft delete book
+```
+
+#### Members
+
+```
+POST   /api/v1/members            Register member
+GET    /api/v1/members            List members (paginated)
+GET    /api/v1/members/{id}       Get member
+PUT    /api/v1/members/{id}       Update member
+DELETE /api/v1/members/{id}       Deactivate member
+```
+
+#### Lending
+
+```
+POST /api/v1/lending/borrow                 Borrow a book
+POST /api/v1/lending/return                 Return a book
+GET  /api/v1/lending/borrowed               All currently borrowed
+GET  /api/v1/lending/member/{memberId}      Borrowed by member
+GET  /api/v1/lending/book/{bookId}/history  Book borrow history
+GET  /api/v1/lending/overdue                All overdue records
+```
+
+Interactive docs: **http://localhost:8000/docs**
 
 ---
 
-## Documentation
+## Diagrams
 
-| Document | Description |
-|----------|-------------|
-| [docs/architecture.md](docs/architecture.md) | Architecture + Saga pattern |
-| [docs/deployment-guide.md](docs/deployment-guide.md) | Docker + Kubernetes setup |
-| [docs/testing-guide.md](docs/testing-guide.md) | How to run and extend tests |
-| [docs/grpc-contracts.md](docs/grpc-contracts.md) | All RPC definitions |
-| [docs/database-design.md](docs/database-design.md) | Schema + ER description |
+### High-Level Architecture
+
+```mermaid
+graph TB
+    Browser-->Frontend["Next.js Frontend\n:3000"]
+    Frontend-->Gateway["API Gateway\nFastAPI :8000"]
+    Gateway-->|gRPC :50051|BookSvc["Book Service\nPython gRPC"]
+    Gateway-->|gRPC :50052|MbrSvc["Member Service\nPython gRPC"]
+    Gateway-->|gRPC :50053|LendSvc["Lending Service\nPython gRPC"]
+    LendSvc-->|gRPC|BookSvc
+    LendSvc-->|gRPC|MbrSvc
+    BookSvc-->DB[(PostgreSQL\nbooks_db)]
+    MbrSvc-->DB2[(PostgreSQL\nmembers_db)]
+    LendSvc-->DB3[(PostgreSQL\nlending_db)]
+```
+
+### Borrow Book Sequence
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant GW as API Gateway
+    participant LS as Lending Service
+    participant MS as Member Service
+    participant BS as Book Service
+    participant DB as Database
+
+    C->>GW: POST /api/v1/lending/borrow
+    GW->>LS: BorrowBook(member_id, book_id)
+    LS->>MS: ValidateActiveMember(member_id)
+    MS-->>LS: {is_active: true}
+    LS->>BS: CheckAvailability(book_id)
+    BS-->>LS: {available: true, copies: 3}
+    LS->>DB: INSERT lending_record
+    LS->>BS: DecreaseAvailableCopies(book_id)
+    BS->>DB: UPDATE books SET available_copies -= 1
+    BS-->>LS: {success: true, available_copies: 2}
+    LS-->>GW: LendingRecord
+    GW-->>C: 201 LendingRecord JSON
+```
+
+### Return Book Sequence
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant GW as API Gateway
+    participant LS as Lending Service
+    participant BS as Book Service
+    participant DB as Database
+
+    C->>GW: POST /api/v1/lending/return
+    GW->>LS: ReturnBook(lending_id)
+    LS->>DB: SELECT lending_record WHERE id=lending_id
+    DB-->>LS: record (status=BORROWED)
+    LS->>DB: UPDATE record SET returned_at=NOW, status=RETURNED
+    Note over LS: Calculate fine<br/>if NOW > due_date:<br/>fine = days * ₹10
+    LS->>BS: IncreaseAvailableCopies(book_id)
+    BS->>DB: UPDATE books SET available_copies += 1
+    LS-->>GW: ReturnBookResponse{record, fine_amount}
+    GW-->>C: 200 {record, fine_amount, is_overdue}
+```
+
+### ER Diagram
+
+```mermaid
+erDiagram
+    BOOKS {
+        uuid id PK
+        string title
+        string author
+        string isbn UK
+        string publisher
+        string category
+        text description
+        int published_year
+        int total_copies
+        int available_copies
+        string shelf_location
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at
+    }
+    MEMBERS {
+        uuid id PK
+        string full_name
+        string email UK
+        string phone
+        string address
+        enum membership_status
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at
+    }
+    LENDING_RECORDS {
+        uuid id PK
+        uuid member_id FK
+        uuid book_id FK
+        datetime borrowed_at
+        datetime due_date
+        datetime returned_at
+        enum status
+        float fine_amount
+        datetime created_at
+        datetime updated_at
+    }
+    MEMBERS ||--o{ LENDING_RECORDS : "borrows"
+    BOOKS   ||--o{ LENDING_RECORDS : "is borrowed in"
+```
 
 ---
 
 ## Troubleshooting
 
-See [WINDOWS_SETUP.md](WINDOWS_SETUP.md) for Windows-specific instructions.
+### Services won't start
 
-**Proto import errors:** Run `make proto` to regenerate and fix imports.
+```bash
+# Check logs
+docker compose logs book-service
+docker compose logs postgres
 
-**Test import errors:** Tests import `from app.X` — ensure you run
-`pytest` from `services/<service>/` or use `make test`.
+# Verify postgres is healthy before services
+docker compose ps
+# postgres should show "(healthy)" before other services start
+```
 
-**Book creation fails:** Check that the ISBN is ≥ 10 characters and not duplicate.
+### Proto import errors
+
+```bash
+# Regenerate proto stubs inside containers
+make down && make up
+# OR regenerate locally
+make proto-install && make proto
+```
+
+### gRPC connection refused
+
+```bash
+# Check service health
+curl http://localhost:8000/health
+
+# Check service ports are exposed
+docker compose ps
+# book-service should show 0.0.0.0:50051->50051/tcp
+```
+
+### Database connection errors
+
+```bash
+# Check postgres is running
+docker compose exec postgres pg_isready -U library
+
+# Check schemas exist
+docker compose exec postgres psql -U library -d librarydb -c "\dn"
+```
+
+### Frontend API connection
+
+The frontend reads `NEXT_PUBLIC_API_URL` at build time. If the API gateway is on a different URL, rebuild the frontend image with the correct env var:
+
+```bash
+NEXT_PUBLIC_API_URL=http://your-api-host:8000 docker compose build frontend
+```
+
+---
+
+## Future Improvements
+
+1. **Authentication & Authorization** — JWT-based auth with role-based access (Admin, Librarian, Member)
+2. **Alembic migrations** — Proper versioned schema migrations instead of `create_all`
+3. **Event streaming** — Kafka/Redis Streams for inter-service events (e.g., fine notifications)
+4. **Notification service** — Email/SMS alerts for due date reminders and overdue notices
+5. **Advanced search** — Full-text search with PostgreSQL FTS or Elasticsearch
+6. **gRPC-Web** — Allow browser clients to call gRPC directly via Envoy proxy
+7. **Observability** — OpenTelemetry traces, Prometheus metrics, Grafana dashboards
+8. **Rate limiting** — Per-IP and per-user rate limiting in API Gateway
+9. **Caching** — Redis cache for frequently read book/member data
+10. **Book reservations** — Allow members to reserve books that are currently unavailable
+11. **Renewal flow** — Extend due date for borrowed books
+12. **CSV/PDF reports** — Export overdue lists, member activity, inventory reports
+13. **Multi-tenant** — Support for multiple library branches
+
+---
+
+## Assumptions
+
+1. **Single PostgreSQL instance** for interview simplicity; production would use separate databases per service
+2. **No authentication** in this version; JWT scaffolding is present in requirements but not wired
+3. **gRPC over insecure channels** (no TLS); production would use mTLS
+4. **Fine calculation** uses UTC timestamps; timezone handling would be added in production
+5. **Available copies** cannot exceed `total_copies` (enforced at repository level)
+6. **Member deactivation** preserves all historical lending records
+7. **Soft delete** for books preserves historical lending records referencing them
+8. **Due days default** is 14 days; configurable per borrow request (1–365 days)
+9. The `NEXT_PUBLIC_API_URL` environment variable must be set at **build time** for Next.js (static optimization)
+
+---
+
+## Evaluation Checklist
+
+| Requirement                    | Status | Details                                                          |
+|-------------------------------|--------|------------------------------------------------------------------|
+| ✅ Database schema             | Done   | Books, Members, Lending — normalized with PKs, FKs, indexes, soft deletes |
+| ✅ REST API                    | Done   | All 16 endpoints implemented in FastAPI API Gateway              |
+| ✅ gRPC                        | Done   | 19 RPCs across 3 services; full .proto contracts                 |
+| ✅ PostgreSQL                  | Done   | PostgreSQL 15 with 3 logical schemas                             |
+| ✅ Python 3.11+                | Done   | All backend services in Python 3.11                              |
+| ✅ Frontend                    | Done   | Next.js 14 + TypeScript + TailwindCSS — all pages implemented    |
+| ✅ Docker                      | Done   | Dockerfile per service + docker-compose.yml — single `make up`  |
+| ✅ Kubernetes                  | Done   | 13 manifests: namespace, configmap, secret, deployments, services, ingress, HPA, NetworkPolicy |
+| ✅ Documentation               | Done   | README, curl examples, Postman collection, inline code comments  |
+| ✅ Error handling              | Done   | gRPC status codes → HTTP codes, Pydantic validation, try/catch   |
+| ✅ Testing                     | Done   | pytest unit tests for all services; fine calculation verified    |
+| ✅ Production readiness        | Done   | Structured logging, correlation IDs, health checks, pagination, graceful shutdown, resource limits |

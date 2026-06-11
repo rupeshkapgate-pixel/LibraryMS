@@ -1,22 +1,19 @@
-"""Book Service gRPC Server with standard gRPC health checking."""
+"""Book Service gRPC Server."""
 import asyncio
 import logging
 import os
 import signal
 
 import grpc
-from grpc_health.v1 import health_pb2_grpc
-from grpc_health.v1.health import HealthServicer
 
 from app.grpc_handlers.book_handler import BookServiceHandler
 from app.proto_generated import book_pb2_grpc
 from app.database import engine
 from app.models.book import Base
-import sqlalchemy
 
 logging.basicConfig(
-    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
-    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -24,48 +21,42 @@ HOST = os.getenv("GRPC_HOST", "0.0.0.0")
 PORT = int(os.getenv("GRPC_PORT", "50051"))
 
 
-async def init_db() -> None:
+async def init_db():
+    """Initialize database schema."""
     async with engine.begin() as conn:
-        await conn.execute(sqlalchemy.text("CREATE SCHEMA IF NOT EXISTS books_db"))
+        await conn.execute(
+            __import__("sqlalchemy").text("CREATE SCHEMA IF NOT EXISTS books_db")
+        )
         await conn.run_sync(Base.metadata.create_all)
-    logger.info("books_db schema ready")
+    logger.info("Database initialized")
 
 
-async def serve() -> None:
+async def serve():
     await init_db()
 
-    server = grpc.aio.server(options=[
-        ("grpc.max_send_message_length",   50 * 1024 * 1024),
-        ("grpc.max_receive_message_length", 50 * 1024 * 1024),
-        ("grpc.keepalive_time_ms", 10_000),
-        ("grpc.keepalive_timeout_ms", 5_000),
-    ])
+    server = grpc.aio.server(
+        options=[
+            ("grpc.max_send_message_length", 50 * 1024 * 1024),
+            ("grpc.max_receive_message_length", 50 * 1024 * 1024),
+            ("grpc.keepalive_time_ms", 10000),
+            ("grpc.keepalive_timeout_ms", 5000),
+        ]
+    )
 
-    # Register application servicer
     book_pb2_grpc.add_BookServiceServicer_to_server(BookServiceHandler(), server)
-
-    # Register standard gRPC health service (grpc_health_v1)
-    health_servicer = HealthServicer()
-    health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
-
-    # Mark service as SERVING
-    from grpc_health.v1 import health_pb2
-    health_servicer.set("book.BookService", health_pb2.HealthCheckResponse.SERVING)
-    health_servicer.set("",                 health_pb2.HealthCheckResponse.SERVING)
 
     listen_addr = f"{HOST}:{PORT}"
     server.add_insecure_port(listen_addr)
     await server.start()
-    logger.info("Book Service listening on %s", listen_addr)
+    logger.info(f"Book Service started on {listen_addr}")
 
-    async def _shutdown(*_):
-        logger.info("Graceful shutdown...")
-        health_servicer.set("book.BookService", health_pb2.HealthCheckResponse.NOT_SERVING)
-        await server.stop(grace=5)
+    async def shutdown():
+        logger.info("Shutting down Book Service...")
+        await server.stop(5)
 
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, lambda: asyncio.create_task(_shutdown()))
+        loop.add_signal_handler(sig, lambda: asyncio.create_task(shutdown()))
 
     await server.wait_for_termination()
 

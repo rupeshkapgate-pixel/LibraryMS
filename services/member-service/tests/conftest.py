@@ -1,7 +1,3 @@
-"""pytest configuration for member-service tests."""
-import sys
-import os
-
-SERVICE_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if SERVICE_ROOT not in sys.path:
-    sys.path.insert(0, SERVICE_ROOT)
+import sys, os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+import pytest
