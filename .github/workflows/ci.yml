@@ -172,6 +172,7 @@ jobs:
 
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         service:
           - { name: book-service,    dockerfile: services/book-service/Dockerfile,    context: . }
