@@ -1,0 +1,239 @@
+# Library Management System - Local Validation Commands
+# Run these commands from the project root:
+# C:\personalProjects\library-management-system
+
+################################################################################
+# 1. PROJECT ROOT
+################################################################################
+
+cd C:\personalProjects\library-management-system
+
+
+################################################################################
+# 2. CREATE AND ACTIVATE PYTHON VIRTUAL ENVIRONMENT
+################################################################################
+
+python -m venv .venv
+.venv\Scripts\activate
+
+
+################################################################################
+# 3. UPGRADE PIP
+################################################################################
+
+python -m pip install --upgrade pip
+
+
+################################################################################
+# 4. INSTALL COMMON DEV TOOLS
+################################################################################
+
+python -m pip install ruff pytest pytest-asyncio anyio
+
+
+################################################################################
+# 5. INSTALL COMPATIBLE GRPC / PROTOBUF TOOLING
+# Important: Keep these versions aligned with generated protobuf files and CI.
+################################################################################
+
+python -m pip install --upgrade --force-reinstall protobuf==5.29.5 grpcio==1.71.0 grpcio-tools==1.71.0
+
+
+################################################################################
+# 6. INSTALL SERVICE DEPENDENCIES
+################################################################################
+
+python -m pip install -r services\api-gateway\requirements.txt
+python -m pip install -r services\book-service\requirements.txt
+python -m pip install -r services\member-service\requirements.txt
+python -m pip install -r services\lending-service\requirements.txt
+
+
+################################################################################
+# 7. RE-ENFORCE GRPC / PROTOBUF VERSIONS
+# Some service requirements may downgrade protobuf. Run this again after service deps.
+################################################################################
+
+python -m pip install --upgrade --force-reinstall protobuf==5.29.5 grpcio==1.71.0 grpcio-tools==1.71.0
+
+
+################################################################################
+# 8. VERIFY PYTHON / GRPC / PROTOBUF INSTALLATION
+################################################################################
+
+python --version
+python -m grpc_tools.protoc --version
+python -c "import google.protobuf; print(google.protobuf.__version__)"
+
+
+################################################################################
+# 9. GENERATE PROTOBUF ARTIFACTS
+# Run this from Git Bash on Windows.
+################################################################################
+
+bash scripts/generate_proto.sh
+
+
+################################################################################
+# 10. VERIFY GENERATED PROTOBUF ARTIFACTS
+################################################################################
+
+dir services\book-service\app\proto_generated
+dir services\member-service\app\proto_generated
+dir services\lending-service\app\proto_generated
+dir services\api-gateway\app\grpc_clients
+
+
+################################################################################
+# 11. PYTHON LINT - ALL SERVICES
+# Generated protobuf artifacts must be excluded from linting.
+################################################################################
+
+python -m ruff check services/ --ignore E501,E402 --exclude "*/proto_generated/*" --exclude "*/grpc_clients/*"
+
+
+################################################################################
+# 12. PYTHON LINT - SERVICE-WISE OPTIONAL COMMANDS
+################################################################################
+
+python -m ruff check services/api-gateway/app/ services/api-gateway/tests/ --ignore E501,E402 --exclude "*/grpc_clients/*"
+python -m ruff check services/book-service/app/ services/book-service/tests/ --ignore E501,E402 --exclude "*/proto_generated/*"
+python -m ruff check services/member-service/app/ services/member-service/tests/ --ignore E501,E402 --exclude "*/proto_generated/*"
+python -m ruff check services/lending-service/app/ services/lending-service/tests/ --ignore E501,E402 --exclude "*/proto_generated/*"
+
+
+################################################################################
+# 13. RUN BACKEND TESTS SERVICE-WISE
+################################################################################
+
+python -m pytest services/api-gateway/tests/ -v --tb=short
+python -m pytest services/book-service/tests/ -v --tb=short
+python -m pytest services/member-service/tests/ -v --tb=short
+python -m pytest services/lending-service/tests/ -v --tb=short
+
+
+################################################################################
+# 14. EXPECTED TEST RESULTS
+################################################################################
+
+# API Gateway     : 13 passed
+# Book Service    : 18 passed
+# Member Service  : 5 passed
+# Lending Service : 25 passed
+# Total           : 61 passed
+
+
+################################################################################
+# 15. FRONTEND DEPENDENCY INSTALL
+# Adjust path if your frontend folder name is different.
+################################################################################
+
+cd C:\personalProjects\library-management-system\services\frontend
+
+npm install
+
+
+################################################################################
+# 16. FRONTEND LINT
+################################################################################
+
+npm run lint -- --cache --cache-location .eslintcache
+
+
+################################################################################
+# 17. FRONTEND BUILD
+################################################################################
+
+npm run build
+
+
+################################################################################
+# 18. RETURN TO PROJECT ROOT
+################################################################################
+
+cd C:\personalProjects\library-management-system
+
+
+################################################################################
+# 19. DOCKER BUILD VALIDATION
+################################################################################
+
+docker compose down -v
+docker compose build --no-cache
+
+
+################################################################################
+# 20. DOCKER START
+################################################################################
+
+docker compose up -d
+
+
+################################################################################
+# 21. CHECK RUNNING CONTAINERS
+################################################################################
+
+docker compose ps
+
+
+################################################################################
+# 22. CHECK SERVICE LOGS
+################################################################################
+
+docker compose logs --tail=100 api-gateway
+docker compose logs --tail=100 book-service
+docker compose logs --tail=100 member-service
+docker compose logs --tail=100 lending-service
+
+
+################################################################################
+# 23. API HEALTH CHECK
+################################################################################
+
+curl http://localhost:8000/health
+
+
+################################################################################
+# 24. OPEN SWAGGER / OPENAPI
+################################################################################
+
+# Open this URL in browser:
+# http://localhost:8000/docs
+
+
+################################################################################
+# 25. FINAL PRE-COMMIT VALIDATION
+################################################################################
+
+python -m ruff check services/ --ignore E501,E402 --exclude "*/proto_generated/*" --exclude "*/grpc_clients/*"
+python -m pytest services/api-gateway/tests/ -v --tb=short
+python -m pytest services/book-service/tests/ -v --tb=short
+python -m pytest services/member-service/tests/ -v --tb=short
+python -m pytest services/lending-service/tests/ -v --tb=short
+
+cd C:\personalProjects\library-management-system\services\frontend
+npm run lint -- --cache --cache-location .eslintcache
+npm run build
+
+cd C:\personalProjects\library-management-system
+docker compose build
+
+
+################################################################################
+# 26. GIT STATUS BEFORE COMMIT
+################################################################################
+
+git status
+
+
+################################################################################
+# 27. OPTIONAL CLEANUP COMMANDS
+################################################################################
+
+docker compose down
+
+# Remove Python cache files on Windows PowerShell:
+# Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
+
+# Remove pytest cache:
+# rmdir /s /q .pytest_cache
