@@ -6,6 +6,7 @@ import { lendingApi } from "@/lib/api";
 import { PageHeader } from "@/components/ui";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import type { ReturnResponse, LendingRecord } from "@/types";
+import { getErrorMessage } from "@/lib/error";
 
 export default function ReturnBookPage() {
   const qc = useQueryClient();
@@ -26,7 +27,7 @@ export default function ReturnBookPage() {
       qc.invalidateQueries({ queryKey: ["books"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? "Return failed"),
+    onError: (e: unknown) => toast.error(getErrorMessage(e, "Return failed")),
   });
 
   const activeBorrows = (borrowedData?.data ?? []).filter(

@@ -7,6 +7,7 @@ import { Plus, Search, Edit, Trash2, Eye } from "lucide-react";
 import { booksApi } from "@/lib/api";
 import { PageHeader, Spinner, EmptyState, Pagination, ConfirmDialog } from "@/components/ui";
 import type { Book } from "@/types";
+import { getErrorMessage } from "@/lib/error";
 
 export default function BooksPage() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function BooksPage() {
       qc.invalidateQueries({ queryKey: ["books"] });
       setDeleteId(null);
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? "Delete failed"),
+    onError: (e: unknown) => toast.error(getErrorMessage(e,"Delete failed")),
   });
 
   function handleSearch(e: React.FormEvent) {

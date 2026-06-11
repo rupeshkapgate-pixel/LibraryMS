@@ -40,7 +40,6 @@ export interface BookCreate {
   shelf_location?: string;
 }
 
-export interface BookUpdate extends Partial<BookCreate> {}
 
 // ── Member ────────────────────────────────────────────────────────────────
 export type MembershipStatus = "ACTIVE" | "INACTIVE";
@@ -63,7 +62,6 @@ export interface MemberCreate {
   address?: string;
 }
 
-export interface MemberUpdate extends Partial<MemberCreate> {}
 
 // ── Lending ───────────────────────────────────────────────────────────────
 export type LendingStatus = "BORROWED" | "RETURNED" | "OVERDUE";

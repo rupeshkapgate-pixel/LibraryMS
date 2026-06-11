@@ -1,7 +1,7 @@
 import axios from "axios";
 import type {
-  Book, BookCreate, BookUpdate,
-  Member, MemberCreate, MemberUpdate,
+  Book, BookCreate,
+  Member, MemberCreate,
   LendingRecord, BorrowRequest, ReturnRequest, ReturnResponse,
   PaginatedResponse, DashboardStats,
 } from "@/types";
@@ -22,7 +22,7 @@ export const booksApi = {
     }),
   get: (id: string) => api.get<Book>(`/api/v1/books/${id}`),
   create: (data: BookCreate) => api.post<Book>("/api/v1/books", data),
-  update: (id: string, data: BookUpdate) => api.put<Book>(`/api/v1/books/${id}`, data),
+  update: (id: string, data: BookCreate) => api.put<Book>(`/api/v1/books/${id}`, data),
   delete: (id: string) => api.delete(`/api/v1/books/${id}`),
   search: (q: string, searchBy = "all", page = 1, pageSize = 20) =>
     api.get<PaginatedResponse<Book>>("/api/v1/books/search", {
@@ -38,7 +38,7 @@ export const membersApi = {
     }),
   get: (id: string) => api.get<Member>(`/api/v1/members/${id}`),
   create: (data: MemberCreate) => api.post<Member>("/api/v1/members", data),
-  update: (id: string, data: MemberUpdate) => api.put<Member>(`/api/v1/members/${id}`, data),
+  update: (id: string, data: MemberCreate) => api.put<Member>(`/api/v1/members/${id}`, data),
   deactivate: (id: string) => api.delete(`/api/v1/members/${id}`),
 };
 

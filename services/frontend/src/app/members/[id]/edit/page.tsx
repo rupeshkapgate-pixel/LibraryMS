@@ -6,6 +6,7 @@ import { membersApi } from "@/lib/api";
 import { PageHeader, Spinner } from "@/components/ui";
 import MemberForm from "@/components/forms/MemberForm";
 import type { MemberCreate } from "@/types";
+import { getErrorMessage } from "@/lib/error";
 
 export default function EditMemberPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -21,7 +22,7 @@ export default function EditMemberPage({ params }: { params: { id: string } }) {
       qc.invalidateQueries({ queryKey: ["members"] });
       router.push("/members");
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? "Update failed"),
+    onError: (e: unknown) => toast.error(getErrorMessage(e, "Update failed")),
   });
   if (isLoading) return <Spinner />;
   if (!member) return <p className="text-red-500 p-6">Member not found.</p>;

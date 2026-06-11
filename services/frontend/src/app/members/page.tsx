@@ -8,6 +8,7 @@ import { membersApi } from "@/lib/api";
 import { PageHeader, Spinner, EmptyState, Pagination, ConfirmDialog } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { Member } from "@/types";
+import { getErrorMessage } from "@/lib/error";
 
 export default function MembersPage() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function MembersPage() {
       qc.invalidateQueries({ queryKey: ["members"] });
       setDeactivateId(null);
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? "Failed to deactivate"),
+    onError: (e: unknown) => toast.error(getErrorMessage(e, "Failed to deactivate")),
   });
 
   return (

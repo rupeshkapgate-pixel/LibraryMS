@@ -6,6 +6,7 @@ import { membersApi } from "@/lib/api";
 import { PageHeader } from "@/components/ui";
 import MemberForm from "@/components/forms/MemberForm";
 import type { MemberCreate } from "@/types";
+import { getErrorMessage } from "@/lib/error";
 
 export default function AddMemberPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function AddMemberPage() {
       qc.invalidateQueries({ queryKey: ["members"] });
       router.push("/members");
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? "Failed to add member"),
+    onError: (e: unknown) => toast.error(getErrorMessage(e, "Failed to add member")),
   });
   return (
     <div>

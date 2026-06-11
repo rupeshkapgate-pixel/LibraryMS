@@ -3,14 +3,15 @@ import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { lendingApi, booksApi, membersApi } from "@/lib/api";
-import { PageHeader, Spinner } from "@/components/ui";
+import { PageHeader} from "@/components/ui";
 import { formatDate } from "@/lib/utils";
-import type { BorrowRequest, Book, Member } from "@/types";
+import type { BorrowRequest, Book, Member, LendingRecord } from "@/types";
+import { getErrorMessage } from "@/lib/error";
 
 export default function BorrowBookPage() {
   const qc = useQueryClient();
   const [form, setForm] = useState<BorrowRequest>({ member_id: "", book_id: "", due_days: 14 });
-  const [success, setSuccess] = useState<any>(null);
+  const [success, setSuccess] = useState<LendingRecord | null>(null);
 
   const { data: booksData } = useQuery({
     queryKey: ["books-available"],
@@ -30,7 +31,7 @@ export default function BorrowBookPage() {
       qc.invalidateQueries({ queryKey: ["lending"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? "Borrow failed"),
+    onError: (e: unknown) => toast.error(getErrorMessage(e, "Borrow failed")),
   });
 
   const availableBooks = (booksData?.data ?? []).filter((b: Book) => b.available_copies > 0);

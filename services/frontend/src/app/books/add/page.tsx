@@ -6,6 +6,7 @@ import { booksApi } from "@/lib/api";
 import { PageHeader } from "@/components/ui";
 import BookForm from "@/components/forms/BookForm";
 import type { BookCreate } from "@/types";
+import { getErrorMessage } from "@/lib/error";
 
 export default function AddBookPage() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function AddBookPage() {
       qc.invalidateQueries({ queryKey: ["books"] });
       router.push("/books");
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? "Failed to add book"),
+    onError: (e: unknown) => toast.error(getErrorMessage(e, "Failed to add book")),
   });
 
   return (

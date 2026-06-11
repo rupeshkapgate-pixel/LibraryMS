@@ -6,6 +6,7 @@ import { booksApi } from "@/lib/api";
 import { PageHeader, Spinner } from "@/components/ui";
 import BookForm from "@/components/forms/BookForm";
 import type { BookCreate } from "@/types";
+import { getErrorMessage } from "@/lib/error";
 
 export default function EditBookPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function EditBookPage({ params }: { params: { id: string } }) {
       qc.invalidateQueries({ queryKey: ["books"] });
       router.push("/books");
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? "Update failed"),
+    onError: (e: unknown) => toast.error(getErrorMessage(e, "Update failed")),
   });
 
   if (isLoading) return <Spinner />;
