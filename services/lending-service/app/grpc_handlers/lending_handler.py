@@ -54,6 +54,78 @@ def get_member_stub():
     return member_pb2_grpc.MemberServiceStub(channel)
 
 
+async def _safe_get_book_details(book_stub, book_id: str) -> tuple[str, str]:
+    """Return (title, isbn) for display enrichment. Never fail lending list flows."""
+    try:
+        book = await book_stub.GetBook(book_pb2.GetBookRequest(id=book_id), timeout=10)
+        return book.title or "", book.isbn or ""
+    except grpc.RpcError as exc:
+        logger.warning("Could not enrich book details for book_id=%s: %s", book_id, exc)
+        return "", ""
+    except Exception as exc:
+        logger.warning("Unexpected book enrichment error for book_id=%s: %s", book_id, exc)
+        return "", ""
+
+
+async def _safe_get_member_details(member_stub, member_id: str) -> tuple[str, str]:
+    """Return (full_name, email) for display enrichment. Never fail lending list flows."""
+    try:
+        member = await member_stub.GetMember(member_pb2.GetMemberRequest(id=member_id), timeout=10)
+        return member.full_name or "", member.email or ""
+    except grpc.RpcError as exc:
+        logger.warning("Could not enrich member details for member_id=%s: %s", member_id, exc)
+        return "", ""
+    except Exception as exc:
+        logger.warning("Unexpected member enrichment error for member_id=%s: %s", member_id, exc)
+        return "", ""
+
+
+async def _enrich_records(records) -> list[lending_pb2.LendingRecord]:
+    """Convert records to protobuf and enrich with book/member display fields.
+
+    Lending DB intentionally stores only foreign IDs. For UI-friendly list and
+    return-dropdown screens, the lending service enriches the response by reading
+    Book and Member services over gRPC. Failed enrichment falls back to IDs.
+    """
+    if not records:
+        return []
+
+    book_channel = grpc.aio.insecure_channel(f"{BOOK_SERVICE_HOST}:{BOOK_SERVICE_PORT}")
+    member_channel = grpc.aio.insecure_channel(f"{MEMBER_SERVICE_HOST}:{MEMBER_SERVICE_PORT}")
+    book_stub = book_pb2_grpc.BookServiceStub(book_channel)
+    member_stub = member_pb2_grpc.MemberServiceStub(member_channel)
+
+    book_cache: dict[str, tuple[str, str]] = {}
+    member_cache: dict[str, tuple[str, str]] = {}
+    enriched: list[lending_pb2.LendingRecord] = []
+
+    try:
+        for record in records:
+            book_id = str(record.book_id)
+            member_id = str(record.member_id)
+
+            if book_id not in book_cache:
+                book_cache[book_id] = await _safe_get_book_details(book_stub, book_id)
+            if member_id not in member_cache:
+                member_cache[member_id] = await _safe_get_member_details(member_stub, member_id)
+
+            book_title, book_isbn = book_cache[book_id]
+            member_name, member_email = member_cache[member_id]
+            enriched.append(
+                _record_to_proto(
+                    record,
+                    book_title=book_title,
+                    book_isbn=book_isbn,
+                    member_name=member_name,
+                    member_email=member_email,
+                )
+            )
+        return enriched
+    finally:
+        await book_channel.close()
+        await member_channel.close()
+
+
 class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
 
     async def BorrowBook(self, request, context):
@@ -82,6 +154,8 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 context.set_details("No available copies of the book")
                 return lending_pb2.LendingRecord()
 
+            book_title, book_isbn = await _safe_get_book_details(book_stub, request.book_id)
+
             # 3. Create lending record
             async with AsyncSessionLocal() as session:
                 repo = LendingRepository(session)
@@ -107,7 +181,8 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 logger.info(f"Book borrowed: member={request.member_id} book={request.book_id} record={record.id}")
                 return _record_to_proto(
                     record,
-                    book_title="",
+                    book_title=book_title,
+                    book_isbn=book_isbn,
                     member_name=member_resp.member.full_name,
                     member_email=member_resp.member.email,
                 )
@@ -155,9 +230,23 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 if is_overdue and returned_record.due_date:
                     overdue_days = max(0, (now - returned_record.due_date).days)
 
+                book_title, book_isbn = await _safe_get_book_details(book_stub, book_id)
+                member_channel = grpc.aio.insecure_channel(f"{MEMBER_SERVICE_HOST}:{MEMBER_SERVICE_PORT}")
+                member_stub = member_pb2_grpc.MemberServiceStub(member_channel)
+                try:
+                    member_name, member_email = await _safe_get_member_details(member_stub, str(returned_record.member_id))
+                finally:
+                    await member_channel.close()
+
                 logger.info(f"Book returned: record={request.lending_id} fine={returned_record.fine_amount}")
                 return lending_pb2.ReturnBookResponse(
-                    record=_record_to_proto(returned_record),
+                    record=_record_to_proto(
+                        returned_record,
+                        book_title=book_title,
+                        book_isbn=book_isbn,
+                        member_name=member_name,
+                        member_email=member_email,
+                    ),
                     fine_amount=returned_record.fine_amount,
                     is_overdue=is_overdue,
                     overdue_days=overdue_days,
@@ -182,7 +271,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 )
                 total_pages = math.ceil(total / page_size) if page_size > 0 else 0
                 return lending_pb2.ListBorrowedBooksResponse(
-                    records=[_record_to_proto(r) for r in records],
+                    records=await _enrich_records(records),
                     pagination=common_pb2.PaginationResponse(
                         page=page,
                         page_size=page_size,
@@ -209,7 +298,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 )
                 total_pages = math.ceil(total / page_size) if page_size > 0 else 0
                 return lending_pb2.ListBorrowedBooksResponse(
-                    records=[_record_to_proto(r) for r in records],
+                    records=await _enrich_records(records),
                     pagination=common_pb2.PaginationResponse(
                         page=page,
                         page_size=page_size,
@@ -236,7 +325,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 )
                 total_pages = math.ceil(total / page_size) if page_size > 0 else 0
                 return lending_pb2.ListBorrowedBooksResponse(
-                    records=[_record_to_proto(r) for r in records],
+                    records=await _enrich_records(records),
                     pagination=common_pb2.PaginationResponse(
                         page=page,
                         page_size=page_size,
@@ -259,7 +348,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 records, total = await repo.list_overdue(page=page, page_size=page_size)
                 total_pages = math.ceil(total / page_size) if page_size > 0 else 0
                 return lending_pb2.ListBorrowedBooksResponse(
-                    records=[_record_to_proto(r) for r in records],
+                    records=await _enrich_records(records),
                     pagination=common_pb2.PaginationResponse(
                         page=page,
                         page_size=page_size,

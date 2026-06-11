@@ -1,0 +1,308 @@
+1. Create Members (5 Members)
+Member 1
+{
+  "full_name": "Rohit Sharma",
+  "email": "rohit.sharma@example.com",
+  "phone": "+91 9876543210",
+  "address": "Baner, Pune"
+}
+Member 2
+{
+  "full_name": "Priya Deshmukh",
+  "email": "priya.deshmukh@example.com",
+  "phone": "+91 9876543211",
+  "address": "Kharadi, Pune"
+}
+Member 3
+{
+  "full_name": "Amit Kulkarni",
+  "email": "amit.kulkarni@example.com",
+  "phone": "+91 9876543212",
+  "address": "Hinjewadi, Pune"
+}
+Member 4
+{
+  "full_name": "Sneha Patil",
+  "email": "sneha.patil@example.com",
+  "phone": "+91 9876543213",
+  "address": "Wakad, Pune"
+}
+Member 5
+{
+  "full_name": "Rahul Joshi",
+  "email": "rahul.joshi@example.com",
+  "phone": "+91 9876543214",
+  "address": "Magarpatta, Pune"
+}
+2. Create Books (6 Books)
+Book 1
+{
+  "title": "Clean Code",
+  "author": "Robert C. Martin",
+  "isbn": "9780132350884",
+  "publisher": "Prentice Hall",
+  "category": "Software Engineering",
+  "description": "Guide to writing maintainable code",
+  "published_year": 2008,
+  "total_copies": 3,
+  "shelf_location": "A1-01"
+}
+Book 2
+{
+  "title": "Designing Data Intensive Applications",
+  "author": "Martin Kleppmann",
+  "isbn": "9781449373320",
+  "publisher": "O'Reilly",
+  "category": "Architecture",
+  "description": "Modern distributed systems",
+  "published_year": 2017,
+  "total_copies": 2,
+  "shelf_location": "A1-02"
+}
+Book 3
+{
+  "title": "The Pragmatic Programmer",
+  "author": "David Thomas",
+  "isbn": "9780135957059",
+  "publisher": "Addison Wesley",
+  "category": "Programming",
+  "description": "Software craftsmanship",
+  "published_year": 2019,
+  "total_copies": 4,
+  "shelf_location": "A1-03"
+}
+Book 4
+{
+  "title": "Spring in Action",
+  "author": "Craig Walls",
+  "isbn": "9781617297571",
+  "publisher": "Manning",
+  "category": "Java",
+  "description": "Spring Framework",
+  "published_year": 2022,
+  "total_copies": 2,
+  "shelf_location": "B1-01"
+}
+Book 5
+{
+  "title": "Kubernetes Up and Running",
+  "author": "Brendan Burns",
+  "isbn": "9781098110208",
+  "publisher": "O'Reilly",
+  "category": "DevOps",
+  "description": "Kubernetes guide",
+  "published_year": 2023,
+  "total_copies": 3,
+  "shelf_location": "B1-02"
+}
+Book 6
+{
+  "title": "Python Crash Course",
+  "author": "Eric Matthes",
+  "isbn": "9781718502703",
+  "publisher": "No Starch Press",
+  "category": "Python",
+  "description": "Python fundamentals",
+  "published_year": 2023,
+  "total_copies": 5,
+  "shelf_location": "B1-03"
+}
+3. Borrow Flow Test Cases
+
+After creating members and books, note the generated IDs.
+
+Borrow 1
+
+Rohit borrows Clean Code
+
+{
+  "member_id": "<ROHIT_ID>",
+  "book_id": "<CLEAN_CODE_ID>",
+  "due_days": 14
+}
+
+Expected:
+
+available_copies: 3 -> 2
+Borrow 2
+
+Priya borrows Clean Code
+
+{
+  "member_id": "<PRIYA_ID>",
+  "book_id": "<CLEAN_CODE_ID>",
+  "due_days": 14
+}
+
+Expected:
+
+available_copies: 2 -> 1
+Borrow 3
+
+Amit borrows Clean Code
+
+{
+  "member_id": "<AMIT_ID>",
+  "book_id": "<CLEAN_CODE_ID>",
+  "due_days": 14
+}
+
+Expected:
+
+available_copies: 1 -> 0
+Borrow 4 (Validation Test)
+
+Sneha tries borrowing same book
+
+{
+  "member_id": "<SNEHA_ID>",
+  "book_id": "<CLEAN_CODE_ID>",
+  "due_days": 14
+}
+
+Expected:
+
+{
+  "detail": "Book not available"
+}
+4. Return Flow Test
+
+Return Rohit's book
+
+{
+  "lending_id": "<ROHIT_LENDING_ID>"
+}
+
+Expected:
+
+available_copies: 0 -> 1
+status: RETURNED
+fine_amount: 0
+5. Overdue Flow Test
+Quick Method
+
+Borrow a book with:
+
+{
+  "member_id": "<RAHUL_ID>",
+  "book_id": "<PYTHON_BOOK_ID>",
+  "due_days": 1
+}
+
+Then manually update DB:
+
+UPDATE lending_db.lending_records
+SET due_date = NOW() - INTERVAL '5 days'
+WHERE id = '<LENDING_ID>';
+
+Return book.
+
+Expected:
+
+5 days overdue
+Fine = ₹50
+
+According to your implementation:
+
+₹10/day
+6. Member Deactivation Test
+
+Deactivate Rahul
+
+DELETE /api/v1/members/{rahul_id}
+
+Expected:
+
+{
+  "membership_status": "INACTIVE"
+}
+
+Try borrowing:
+
+{
+  "member_id": "<RAHUL_ID>",
+  "book_id": "<SPRING_BOOK_ID>",
+  "due_days": 14
+}
+
+Expected:
+
+{
+  "detail": "Member is inactive"
+}
+7. Search API Tests
+
+Search by title:
+
+GET /api/v1/books/search?q=clean
+
+Expected:
+
+Clean Code
+
+Search by author:
+
+GET /api/v1/books/search?q=martin
+
+Expected:
+
+Clean Code
+Designing Data Intensive Applications
+
+Search by category:
+
+GET /api/v1/books?category=Python
+
+Expected:
+
+Python Crash Course
+8. History API Test
+
+After:
+
+Rohit borrows Clean Code
+Rohit returns Clean Code
+Priya borrows Clean Code
+
+Call:
+
+GET /api/v1/lending/book/{book_id}/history
+
+Expected:
+
+Borrow #1 -> Rohit
+Return #1 -> Rohit
+Borrow #2 -> Priya
+9. Dashboard Validation
+
+Expected dashboard after above operations:
+
+Metric	Expected
+Total Books	6
+Total Members	5
+Active Members	4
+Borrowed Books	Depends on current borrows
+Overdue Books	1
+Fine Collected	₹50
+10. End-to-End Demo Scenario
+
+For interview/demo:
+
+Create 5 members.
+Create 6 books.
+Borrow 3 books.
+Show available copies reducing.
+Attempt 4th borrow (fails).
+Return a book.
+Show copies increasing.
+Create overdue record.
+Show overdue API.
+Show fine calculation.
+Deactivate member.
+Show borrow blocked.
+Show Swagger docs.
+Show React dashboard.
+Show Docker containers.
+Show GitHub Actions green pipeline.
+
+This sequence demonstrates nearly every functional and non-functional requirement in under 10 minutes.

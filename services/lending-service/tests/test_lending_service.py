@@ -21,12 +21,9 @@ from app.services.lending_service import LendingService
 @pytest.fixture
 def mock_session():
     session = AsyncMock()
-    cm = AsyncMock()
-    cm.__aenter__ = AsyncMock(return_value=cm)
-    cm.__aexit__ = AsyncMock(return_value=False)
-    session.begin = MagicMock(return_value=cm)
     session.flush = AsyncMock()
     session.commit = AsyncMock()
+    session.rollback = AsyncMock()
     session.refresh = AsyncMock()
     session.add = MagicMock()
     return session

@@ -1,12 +1,16 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { lendingApi } from "@/lib/api";
+import { booksApi, lendingApi, membersApi } from "@/lib/api";
 import { PageHeader } from "@/components/ui";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import type { ReturnResponse, LendingRecord } from "@/types";
+import type { Book, Member, ReturnResponse, LendingRecord } from "@/types";
 import { getErrorMessage } from "@/lib/error";
+
+function shortId(id: string) {
+  return `${id.slice(0, 8)}…`;
+}
 
 export default function ReturnBookPage() {
   const qc = useQueryClient();
@@ -17,6 +21,24 @@ export default function ReturnBookPage() {
     queryKey: ["lending", "borrowed", 1, 100],
     queryFn: () => lendingApi.listBorrowed(1, 100).then((r) => r.data),
   });
+
+  const { data: booksData } = useQuery({
+    queryKey: ["books", "lookup", 1, 500],
+    queryFn: () => booksApi.list(1, 500).then((r) => r.data),
+  });
+
+  const { data: membersData } = useQuery({
+    queryKey: ["members", "lookup", 1, 500],
+    queryFn: () => membersApi.list(1, 500).then((r) => r.data),
+  });
+
+  const bookById = useMemo(() => {
+    return new Map((booksData?.data ?? []).map((book: Book) => [book.id, book]));
+  }, [booksData]);
+
+  const memberById = useMemo(() => {
+    return new Map((membersData?.data ?? []).map((member: Member) => [member.id, member]));
+  }, [membersData]);
 
   const mutation = useMutation({
     mutationFn: () => lendingApi.return({ lending_id: lendingId }),
@@ -33,6 +55,17 @@ export default function ReturnBookPage() {
   const activeBorrows = (borrowedData?.data ?? []).filter(
     (r: LendingRecord) => r.status === "BORROWED" || r.status === "OVERDUE"
   );
+
+  function getBorrowLabel(record: LendingRecord) {
+    const book = bookById.get(record.book_id);
+    const member = memberById.get(record.member_id);
+
+    const bookLabel = record.book_title ?? book?.title ?? `Book ${shortId(record.book_id)}`;
+    const memberLabel = record.member_name ?? member?.full_name ?? `Member ${shortId(record.member_id)}`;
+    const dueLabel = formatDate(record.due_date);
+
+    return `[${record.status}] ${bookLabel} | ${memberLabel} | Due: ${dueLabel}`;
+  }
 
   if (result) {
     return (
@@ -70,7 +103,7 @@ export default function ReturnBookPage() {
   return (
     <div>
       <PageHeader title="Return Book" description="Process a book return" />
-      <div className="card p-6 max-w-md">
+      <div className="card p-6 max-w-xl">
         <div className="space-y-5">
           <div>
             <label className="label">Select Lending Record <span className="text-red-500">*</span></label>
@@ -80,9 +113,9 @@ export default function ReturnBookPage() {
               onChange={(e) => setLendingId(e.target.value)}
             >
               <option value="">Select a borrowed record…</option>
-              {activeBorrows.map((r: LendingRecord) => (
-                <option key={r.id} value={r.id}>
-                  [{r.status}] Book: {r.book_id.slice(0, 8)}… | Member: {r.member_id.slice(0, 8)}… | Due: {formatDate(r.due_date)}
+              {activeBorrows.map((record: LendingRecord) => (
+                <option key={record.id} value={record.id}>
+                  {getBorrowLabel(record)}
                 </option>
               ))}
             </select>

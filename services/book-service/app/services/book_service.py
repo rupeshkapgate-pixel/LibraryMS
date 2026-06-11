@@ -1,19 +1,10 @@
-"""
-Book Service — service layer.
-
-Sits between the gRPC handler (presentation) and the repository (data access).
-Owns:
-  - Business rule enforcement (duplicate ISBN check)
-  - Transaction boundaries: the service layer starts/commits transactions;
-    repositories are purely query/mutation helpers that do NOT commit.
-  - Optimistic/pessimistic locking for copy-count mutations
-"""
+"""Book Service — service layer."""
 from __future__ import annotations
 
 import logging
 import time
 from datetime import datetime
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,28 +17,27 @@ _SVC = "book-service"
 
 
 class BookService:
-    """
-    Stateless service object – instantiated per-request with an injected session.
-    All public methods manage the transaction lifecycle; repositories never commit.
-    """
+    """Business logic for books; owns explicit commit/rollback boundaries."""
 
     def __init__(self, session: AsyncSession):
         self._session = session
         self._repo = BookRepository(session)
 
-    # ── Create ────────────────────────────────────────────────────────────────
-
     async def create_book(self, data: dict) -> Book:
         t0 = time.perf_counter()
         try:
-            async with self._session.begin():
-                existing = await self._repo.get_by_isbn_no_commit(data["isbn"])
-                if existing:
-                    raise ValueError(f"Book with ISBN {data['isbn']} already exists")
-                book = await self._repo.create_no_commit(data)
+            existing = await self._repo.get_by_isbn_no_commit(data["isbn"])
+            if existing:
+                raise ValueError(f"Book with ISBN {data['isbn']} already exists")
+
+            book = await self._repo.create_no_commit(data)
+            await self._session.commit()
+            await self._session.refresh(book)
+
             DB_QUERY_COUNTER.labels(service=_SVC, operation="create_book", status="ok").inc()
             return book
         except Exception:
+            await self._session.rollback()
             DB_QUERY_COUNTER.labels(service=_SVC, operation="create_book", status="error").inc()
             raise
         finally:
@@ -55,22 +45,25 @@ class BookService:
                 time.perf_counter() - t0
             )
 
-    # ── Update ────────────────────────────────────────────────────────────────
-
     async def update_book(self, book_id: str, data: dict) -> Optional[Book]:
         t0 = time.perf_counter()
         try:
-            async with self._session.begin():
-                book = await self._repo.get_by_id_for_update(book_id)
-                if not book:
-                    return None
-                for key, value in data.items():
-                    if value is not None and hasattr(book, key):
-                        setattr(book, key, value)
-                book.updated_at = datetime.utcnow()
+            book = await self._repo.get_by_id_for_update(book_id)
+            if not book:
+                await self._session.rollback()
+                return None
+            for key, value in data.items():
+                if value is not None and hasattr(book, key):
+                    setattr(book, key, value)
+            book.updated_at = datetime.utcnow()
+
+            await self._session.commit()
+            await self._session.refresh(book)
+
             DB_QUERY_COUNTER.labels(service=_SVC, operation="update_book", status="ok").inc()
             return book
         except Exception:
+            await self._session.rollback()
             DB_QUERY_COUNTER.labels(service=_SVC, operation="update_book", status="error").inc()
             raise
         finally:
@@ -78,12 +71,8 @@ class BookService:
                 time.perf_counter() - t0
             )
 
-    # ── Get ───────────────────────────────────────────────────────────────────
-
     async def get_book(self, book_id: str) -> Optional[Book]:
         return await self._repo.get_by_id(book_id)
-
-    # ── List ──────────────────────────────────────────────────────────────────
 
     async def list_books(
         self,
@@ -94,20 +83,26 @@ class BookService:
         sort_order: str = "desc",
     ) -> Tuple[List[Book], int]:
         return await self._repo.list_books(
-            page=page, page_size=page_size,
-            category=category, sort_by=sort_by, sort_order=sort_order,
+            page=page,
+            page_size=page_size,
+            category=category,
+            sort_by=sort_by,
+            sort_order=sort_order,
         )
-
-    # ── Search ────────────────────────────────────────────────────────────────
 
     async def search_books(
-        self, query: str, search_by: str, page: int, page_size: int
+        self,
+        query: str,
+        search_by: str,
+        page: int,
+        page_size: int,
     ) -> Tuple[List[Book], int]:
         return await self._repo.search(
-            query=query, search_by=search_by, page=page, page_size=page_size
+            query=query,
+            search_by=search_by,
+            page=page,
+            page_size=page_size,
         )
-
-    # ── Availability ──────────────────────────────────────────────────────────
 
     async def check_availability(self, book_id: str) -> Tuple[bool, int]:
         book = await self._repo.get_by_id(book_id)
@@ -115,35 +110,29 @@ class BookService:
             raise LookupError(f"Book {book_id} not found")
         return book.available_copies > 0, book.available_copies
 
-    # ── Copy mutations with row-level locking ─────────────────────────────────
-
     async def decrease_copies(self, book_id: str, count: int = 1) -> int:
-        """
-        Decrease available_copies by *count* using SELECT … FOR UPDATE (row-level lock).
-        This prevents lost-update races when multiple concurrent borrow requests
-        hit the same book simultaneously.
-
-        Returns the new available_copies value.
-        Raises ValueError if there are insufficient copies.
-        """
         t0 = time.perf_counter()
         try:
-            async with self._session.begin():
-                # Acquire a row-level exclusive lock before reading
-                book = await self._repo.get_by_id_for_update(book_id)
-                if not book:
-                    raise LookupError(f"Book {book_id} not found")
-                if book.available_copies < count:
-                    raise ValueError(
-                        f"Insufficient copies: requested {count}, "
-                        f"available {book.available_copies}"
-                    )
-                book.available_copies -= count
-                book.updated_at = datetime.utcnow()
-                # Transaction commits automatically on context-manager exit
+            if count <= 0:
+                raise ValueError("count must be greater than zero")
+
+            book = await self._repo.get_by_id_for_update(book_id)
+            if not book:
+                raise LookupError(f"Book {book_id} not found")
+            if book.available_copies < count:
+                raise ValueError(
+                    f"Insufficient copies: requested {count}, available {book.available_copies}"
+                )
+
+            book.available_copies -= count
+            book.updated_at = datetime.utcnow()
+            new_available_copies = book.available_copies
+
+            await self._session.commit()
             DB_QUERY_COUNTER.labels(service=_SVC, operation="decrease_copies", status="ok").inc()
-            return book.available_copies
+            return new_available_copies
         except Exception:
+            await self._session.rollback()
             DB_QUERY_COUNTER.labels(service=_SVC, operation="decrease_copies", status="error").inc()
             raise
         finally:
@@ -152,23 +141,24 @@ class BookService:
             )
 
     async def increase_copies(self, book_id: str, count: int = 1) -> int:
-        """
-        Increase available_copies by *count* using SELECT … FOR UPDATE.
-        Caps at total_copies.
-        """
         t0 = time.perf_counter()
         try:
-            async with self._session.begin():
-                book = await self._repo.get_by_id_for_update(book_id)
-                if not book:
-                    raise LookupError(f"Book {book_id} not found")
-                book.available_copies = min(
-                    book.available_copies + count, book.total_copies
-                )
-                book.updated_at = datetime.utcnow()
+            if count <= 0:
+                raise ValueError("count must be greater than zero")
+
+            book = await self._repo.get_by_id_for_update(book_id)
+            if not book:
+                raise LookupError(f"Book {book_id} not found")
+
+            book.available_copies = min(book.available_copies + count, book.total_copies)
+            book.updated_at = datetime.utcnow()
+            new_available_copies = book.available_copies
+
+            await self._session.commit()
             DB_QUERY_COUNTER.labels(service=_SVC, operation="increase_copies", status="ok").inc()
-            return book.available_copies
+            return new_available_copies
         except Exception:
+            await self._session.rollback()
             DB_QUERY_COUNTER.labels(service=_SVC, operation="increase_copies", status="error").inc()
             raise
         finally:
@@ -176,12 +166,15 @@ class BookService:
                 time.perf_counter() - t0
             )
 
-    # ── Delete ────────────────────────────────────────────────────────────────
-
     async def soft_delete(self, book_id: str) -> bool:
-        async with self._session.begin():
+        try:
             book = await self._repo.get_by_id_for_update(book_id)
             if not book:
+                await self._session.rollback()
                 return False
             book.deleted_at = datetime.utcnow()
-        return True
+            await self._session.commit()
+            return True
+        except Exception:
+            await self._session.rollback()
+            raise

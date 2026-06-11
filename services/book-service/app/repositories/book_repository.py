@@ -1,13 +1,11 @@
 """
-Book Repository — pure data-access layer.
+Book Repository — data-access layer.
 
-Design contract:
-  - Methods ending in _no_commit do NOT call session.commit().
-    They are called from within a transaction managed by the service layer.
-  - get_by_id_for_update issues SELECT … FOR UPDATE (row-level lock).
-  - The legacy public methods (create, update, soft_delete, …) preserve
-    backwards compatibility for existing tests while internally delegating
-    to the no-commit variants wrapped in their own begin() blocks.
+Repository methods ending in `_no_commit` never commit and are intended for
+service-layer transaction management. Legacy public mutation methods still exist
+for direct repository callers and tests, but they now use explicit
+commit/rollback instead of `session.begin()` so they do not fail when SQLAlchemy
+has already auto-started a transaction after a SELECT.
 """
 from __future__ import annotations
 
@@ -15,7 +13,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from sqlalchemy import select, func, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.book import Book
@@ -25,10 +23,10 @@ class BookRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    # ── Internal: no-commit helpers used by BookService ──────────────────────
+    # ── No-commit helpers used by BookService ────────────────────────────────
 
     async def create_no_commit(self, data: dict) -> Book:
-        """Insert a Book row without committing (caller owns the transaction)."""
+        """Insert a Book row without committing; caller owns commit/rollback."""
         book = Book(
             id=uuid.uuid4(),
             title=data["title"],
@@ -43,7 +41,7 @@ class BookRepository:
             shelf_location=data.get("shelf_location"),
         )
         self.session.add(book)
-        await self.session.flush()   # obtain DB-assigned defaults; no commit
+        await self.session.flush()
         return book
 
     async def get_by_isbn_no_commit(self, isbn: str) -> Optional[Book]:
@@ -52,11 +50,7 @@ class BookRepository:
         return result.scalar_one_or_none()
 
     async def get_by_id_for_update(self, book_id: str) -> Optional[Book]:
-        """
-        SELECT … FOR UPDATE — acquires a row-level exclusive lock so that
-        concurrent transactions serialise on this row.  Must be called from
-        inside an active transaction (session.begin() or begin_nested()).
-        """
+        """Fetch a book with SELECT ... FOR UPDATE row-level lock."""
         stmt = (
             select(Book)
             .where(Book.id == uuid.UUID(book_id), Book.deleted_at.is_(None))
@@ -65,7 +59,7 @@ class BookRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    # ── Read-only helpers (no lock needed) ───────────────────────────────────
+    # ── Read-only helpers ────────────────────────────────────────────────────
 
     async def get_by_id(self, book_id: str) -> Optional[Book]:
         stmt = select(Book).where(
@@ -110,10 +104,10 @@ class BookRepository:
         q = f"%{query}%"
 
         filter_map = {
-            "title":    Book.title.ilike(q),
-            "author":   Book.author.ilike(q),
+            "title": Book.title.ilike(q),
+            "author": Book.author.ilike(q),
             "category": Book.category.ilike(q),
-            "isbn":     Book.isbn.ilike(q),
+            "isbn": Book.isbn.ilike(q),
         }
         if search_by in filter_map:
             base_stmt = base_stmt.where(filter_map[search_by])
@@ -127,46 +121,74 @@ class BookRepository:
         result = await self.session.execute(base_stmt)
         return result.scalars().all(), total or 0
 
-    # ── Legacy transactional methods (kept for test compatibility) ────────────
+    # ── Legacy transactional mutation methods ────────────────────────────────
 
     async def create(self, data: dict) -> Book:
-        async with self.session.begin():
+        try:
             book = await self.create_no_commit(data)
-        return book
+            await self.session.commit()
+            await self.session.refresh(book)
+            return book
+        except Exception:
+            await self.session.rollback()
+            raise
 
     async def update(self, book_id: str, data: dict) -> Optional[Book]:
-        async with self.session.begin():
+        try:
             book = await self.get_by_id_for_update(book_id)
             if not book:
+                await self.session.rollback()
                 return None
             for key, value in data.items():
                 if value is not None and hasattr(book, key):
                     setattr(book, key, value)
             book.updated_at = datetime.utcnow()
-        return book
+            await self.session.commit()
+            await self.session.refresh(book)
+            return book
+        except Exception:
+            await self.session.rollback()
+            raise
 
     async def soft_delete(self, book_id: str) -> bool:
-        async with self.session.begin():
+        try:
             book = await self.get_by_id_for_update(book_id)
             if not book:
+                await self.session.rollback()
                 return False
             book.deleted_at = datetime.utcnow()
-        return True
+            await self.session.commit()
+            return True
+        except Exception:
+            await self.session.rollback()
+            raise
 
     async def decrease_available_copies(self, book_id: str, count: int = 1) -> Optional[Book]:
-        async with self.session.begin():
+        try:
             book = await self.get_by_id_for_update(book_id)
             if not book or book.available_copies < count:
+                await self.session.rollback()
                 return None
             book.available_copies -= count
             book.updated_at = datetime.utcnow()
-        return book
+            await self.session.commit()
+            await self.session.refresh(book)
+            return book
+        except Exception:
+            await self.session.rollback()
+            raise
 
     async def increase_available_copies(self, book_id: str, count: int = 1) -> Optional[Book]:
-        async with self.session.begin():
+        try:
             book = await self.get_by_id_for_update(book_id)
             if not book:
+                await self.session.rollback()
                 return None
             book.available_copies = min(book.available_copies + count, book.total_copies)
             book.updated_at = datetime.utcnow()
-        return book
+            await self.session.commit()
+            await self.session.refresh(book)
+            return book
+        except Exception:
+            await self.session.rollback()
+            raise

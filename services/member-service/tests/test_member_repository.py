@@ -14,7 +14,9 @@ from app.models.member import Member, MembershipStatus
 @pytest.fixture
 def mock_session():
     session = AsyncMock()
+    session.flush = AsyncMock()
     session.commit = AsyncMock()
+    session.rollback = AsyncMock()
     session.refresh = AsyncMock()
     session.add = MagicMock()
     return session

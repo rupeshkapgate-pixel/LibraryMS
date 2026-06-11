@@ -52,14 +52,18 @@ class LendingRepository:
         due_days: int = DEFAULT_DUE_DAYS,
     ) -> LendingRecord:
         """Legacy transactional create kept for backward compatibility."""
-        record = await self.create_no_commit(
-            member_id=member_id,
-            book_id=book_id,
-            due_days=due_days,
-        )
-        await self.session.commit()
-        await self.session.refresh(record)
-        return record
+        try:
+            record = await self.create_no_commit(
+                member_id=member_id,
+                book_id=book_id,
+                due_days=due_days,
+            )
+            await self.session.commit()
+            await self.session.refresh(record)
+            return record
+        except Exception:
+            await self.session.rollback()
+            raise
 
     async def get_by_id(self, record_id: str) -> Optional[LendingRecord]:
         stmt = select(LendingRecord).where(LendingRecord.id == uuid.UUID(record_id))
@@ -90,26 +94,32 @@ class LendingRepository:
         return result.scalar_one_or_none()
 
     async def return_book(self, record_id: str) -> Optional[LendingRecord]:
-        record = await self.get_by_id(record_id)
-        if not record:
-            return None
-        if record.status == LendingStatus.RETURNED:
-            return None
+        try:
+            record = await self.get_by_id(record_id)
+            if not record:
+                await self.session.rollback()
+                return None
+            if record.status == LendingStatus.RETURNED:
+                await self.session.rollback()
+                return None
 
-        now = datetime.utcnow()
-        record.returned_at = now
-        record.updated_at = now
+            now = datetime.utcnow()
+            record.returned_at = now
+            record.updated_at = now
 
-        if now > record.due_date:
-            overdue_days = max(0, (now - record.due_date).days)
-            record.fine_amount = overdue_days * FINE_PER_DAY
-        else:
-            record.fine_amount = 0.0
+            if now > record.due_date:
+                overdue_days = max(0, (now - record.due_date).days)
+                record.fine_amount = overdue_days * FINE_PER_DAY
+            else:
+                record.fine_amount = 0.0
 
-        record.status = LendingStatus.RETURNED
-        await self.session.commit()
-        await self.session.refresh(record)
-        return record
+            record.status = LendingStatus.RETURNED
+            await self.session.commit()
+            await self.session.refresh(record)
+            return record
+        except Exception:
+            await self.session.rollback()
+            raise
 
     async def update_overdue_status(self) -> int:
         """Mark all overdue borrowed records."""
@@ -129,6 +139,8 @@ class LendingRepository:
 
         if count:
             await self.session.commit()
+        else:
+            await self.session.rollback()
         return count
 
     async def list_borrowed_books(

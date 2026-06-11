@@ -26,16 +26,12 @@ from app.repositories.book_repository import BookRepository
 
 @pytest.fixture
 def mock_session():
-    """Async SQLAlchemy session mock with transaction context support."""
+    """Async SQLAlchemy session mock."""
     session = AsyncMock()
 
-    transaction = AsyncMock()
-    transaction.__aenter__ = AsyncMock(return_value=transaction)
-    transaction.__aexit__ = AsyncMock(return_value=False)
-
-    session.begin = MagicMock(return_value=transaction)
     session.flush = AsyncMock()
     session.commit = AsyncMock()
+    session.rollback = AsyncMock()
     session.refresh = AsyncMock()
     session.add = MagicMock()
     return session

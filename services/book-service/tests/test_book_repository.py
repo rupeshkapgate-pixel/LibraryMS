@@ -15,16 +15,12 @@ from app.repositories.book_repository import BookRepository
 
 @pytest.fixture
 def mock_session():
-    """Async SQLAlchemy session mock with transaction context support."""
+    """Async SQLAlchemy session mock."""
     session = AsyncMock()
 
-    transaction = AsyncMock()
-    transaction.__aenter__ = AsyncMock(return_value=transaction)
-    transaction.__aexit__ = AsyncMock(return_value=False)
-
-    session.begin = MagicMock(return_value=transaction)
     session.flush = AsyncMock()
     session.commit = AsyncMock()
+    session.rollback = AsyncMock()
     session.refresh = AsyncMock()
     session.add = MagicMock()
     session.delete = AsyncMock()
@@ -72,10 +68,10 @@ class TestBookRepository:
         assert book.isbn == data["isbn"]
         assert book.total_copies == 3
         assert book.available_copies == 3
-        mock_session.begin.assert_called_once()
         mock_session.add.assert_called_once()
         mock_session.flush.assert_awaited_once()
-        mock_session.commit.assert_not_awaited()
+        mock_session.commit.assert_awaited_once()
+        mock_session.refresh.assert_awaited_once_with(book)
         assert added_books == [book]
 
     @pytest.mark.asyncio
@@ -112,7 +108,7 @@ class TestBookRepository:
 
         assert result is True
         assert sample_book.deleted_at is not None
-        mock_session.begin.assert_called_once()
+        mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_soft_delete_not_found(self, mock_session):
@@ -124,7 +120,8 @@ class TestBookRepository:
         result = await repo.soft_delete(str(uuid.uuid4()))
 
         assert result is False
-        mock_session.begin.assert_called_once()
+        mock_session.rollback.assert_awaited_once()
+        mock_session.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_decrease_copies_success(self, mock_session, sample_book):
@@ -138,7 +135,7 @@ class TestBookRepository:
 
         assert book is not None
         assert book.available_copies == original_available - 1
-        mock_session.begin.assert_called_once()
+        mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_decrease_copies_insufficient(self, mock_session, sample_book):
@@ -152,7 +149,8 @@ class TestBookRepository:
 
         assert book is None
         assert sample_book.available_copies == 0
-        mock_session.begin.assert_called_once()
+        mock_session.rollback.assert_awaited_once()
+        mock_session.commit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_increase_copies(self, mock_session, sample_book):
@@ -167,7 +165,7 @@ class TestBookRepository:
 
         assert book is not None
         assert book.available_copies == 3
-        mock_session.begin.assert_called_once()
+        mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_increase_copies_capped_at_total(self, mock_session, sample_book):
@@ -182,7 +180,7 @@ class TestBookRepository:
 
         assert book is not None
         assert book.available_copies == 5
-        mock_session.begin.assert_called_once()
+        mock_session.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_list_books(self, mock_session, sample_book):

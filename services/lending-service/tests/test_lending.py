@@ -17,6 +17,7 @@ from app.repositories.lending_repository import FINE_PER_DAY, LendingRepository
 def mock_session():
     session = AsyncMock()
     session.commit = AsyncMock()
+    session.rollback = AsyncMock()
     session.refresh = AsyncMock()
     session.flush = AsyncMock()
     session.add = MagicMock()

@@ -18,6 +18,22 @@ const nav = [
   { label: "Overdue Books",   href: "/lending/overdue", icon: AlertTriangle },
 ];
 
+function isActivePath(path: string, href: string) {
+  if (href === "/") {
+    return path === "/";
+  }
+
+  // Books and members have nested detail/edit pages, so their parent menu item
+  // should remain active for child routes.
+  if (href === "/books" || href === "/members") {
+    return path === href || path.startsWith(`${href}/`);
+  }
+
+  // Lending routes share prefixes, for example /lending/borrow and
+  // /lending/borrowed. Use exact matching to avoid highlighting both.
+  return path === href;
+}
+
 export default function Sidebar() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -25,7 +41,7 @@ export default function Sidebar() {
   const links = (
     <ul className="space-y-0.5">
       {nav.map(({ label, href, icon: Icon }) => {
-        const active = path === href || (href !== "/" && path.startsWith(href));
+        const active = isActivePath(path, href);
         return (
           <li key={href}>
             <Link
