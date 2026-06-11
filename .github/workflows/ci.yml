@@ -178,7 +178,7 @@ jobs:
           - { name: member-service,  dockerfile: services/member-service/Dockerfile,  context: . }
           - { name: lending-service, dockerfile: services/lending-service/Dockerfile, context: . }
           - { name: api-gateway,     dockerfile: services/api-gateway/Dockerfile,     context: . }
-          - { name: frontend,        dockerfile: Dockerfile,                          context: services/frontend }
+          - { name: frontend,        dockerfile: services/frontend/Dockerfile, context: . }
 
     steps:
       - name: Checkout source
