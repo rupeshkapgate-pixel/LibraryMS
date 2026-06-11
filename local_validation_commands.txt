@@ -119,8 +119,8 @@ python -m pytest services/lending-service/tests/ -v --tb=short
 # API Gateway     : 13 passed
 # Book Service    : 18 passed
 # Member Service  : 5 passed
-# Lending Service : 25 passed
-# Total           : 61 passed
+# Lending Service : 28 passed
+# Total           : 64 passed
 
 
 ################################################################################

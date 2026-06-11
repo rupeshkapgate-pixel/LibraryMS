@@ -10,6 +10,7 @@ from app.database import AsyncSessionLocal
 from app.repositories.lending_repository import LendingRepository
 from app.models.lending import LendingStatus
 from app.observability.logging import get_grpc_correlation_id, log_event
+from app.telemetry.setup import make_grpc_metadata_with_trace
 from app.proto_generated import lending_pb2, lending_pb2_grpc, common_pb2
 from app.proto_generated import book_pb2, book_pb2_grpc, member_pb2, member_pb2_grpc
 
@@ -40,6 +41,12 @@ def _log_info(operation: str, context, message: str, **extra) -> None:
         message=message,
         **extra,
     )
+
+
+def downstream_metadata(context) -> list[tuple[str, str]]:
+    correlation_id = get_grpc_correlation_id(context)
+    base = [("x-correlation-id", correlation_id)] if correlation_id and correlation_id != "-" else []
+    return make_grpc_metadata_with_trace(base)
 
 
 BOOK_SERVICE_HOST = os.getenv("BOOK_SERVICE_HOST", "localhost")
@@ -164,6 +171,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
             member_resp = await member_stub.ValidateActiveMember(
                 member_pb2.ValidateActiveMemberRequest(member_id=request.member_id),
                 timeout=10,
+                metadata=downstream_metadata(context),
             )
             if not member_resp.is_active:
                 context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
@@ -176,6 +184,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
             avail_resp = await book_stub.CheckAvailability(
                 book_pb2.CheckAvailabilityRequest(book_id=request.book_id),
                 timeout=10,
+                metadata=downstream_metadata(context),
             )
             if not avail_resp.available:
                 context.set_code(grpc.StatusCode.FAILED_PRECONDITION)
@@ -197,6 +206,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 decrease_resp = await book_stub.DecreaseAvailableCopies(
                     book_pb2.UpdateCopiesRequest(book_id=request.book_id, count=1),
                     timeout=10,
+                    metadata=downstream_metadata(context),
                 )
                 if not decrease_resp.success:
                     # Rollback: delete the lending record
@@ -250,6 +260,7 @@ class LendingServiceHandler(lending_pb2_grpc.LendingServiceServicer):
                 await book_stub.IncreaseAvailableCopies(
                     book_pb2.UpdateCopiesRequest(book_id=book_id, count=1),
                     timeout=10,
+                    metadata=downstream_metadata(context),
                 )
 
                 now = datetime.utcnow()

@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.lending import LendingRecord, LendingStatus
 from app.proto_generated import book_pb2, book_pb2_grpc, member_pb2, member_pb2_grpc
 from app.repositories.lending_repository import FINE_PER_DAY, LendingRepository
-from app.telemetry.setup import DB_QUERY_COUNTER, DB_QUERY_LATENCY
+from app.telemetry.setup import DB_QUERY_COUNTER, DB_QUERY_LATENCY, make_grpc_metadata_with_trace
 
 logger = logging.getLogger(__name__)
 _SVC = "lending-service"
@@ -187,6 +187,7 @@ class LendingService:
             resp = await stub.ValidateActiveMember(
                 member_pb2.ValidateActiveMemberRequest(member_id=member_id),
                 timeout=10,
+                metadata=make_grpc_metadata_with_trace(),
             )
         finally:
             await channel.close()
@@ -202,6 +203,7 @@ class LendingService:
             resp = await stub.CheckAvailability(
                 book_pb2.CheckAvailabilityRequest(book_id=book_id),
                 timeout=10,
+                metadata=make_grpc_metadata_with_trace(),
             )
         finally:
             await channel.close()
@@ -216,6 +218,7 @@ class LendingService:
             resp = await stub.DecreaseAvailableCopies(
                 book_pb2.UpdateCopiesRequest(book_id=book_id, count=1),
                 timeout=10,
+                metadata=make_grpc_metadata_with_trace(),
             )
         finally:
             await channel.close()
@@ -230,6 +233,7 @@ class LendingService:
             await stub.IncreaseAvailableCopies(
                 book_pb2.UpdateCopiesRequest(book_id=book_id, count=1),
                 timeout=10,
+                metadata=make_grpc_metadata_with_trace(),
             )
         finally:
             await channel.close()

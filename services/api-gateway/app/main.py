@@ -12,10 +12,11 @@ from app.grpc_clients import get_book_channel, get_member_channel, get_lending_c
 from app.grpc_clients.proto_generated import book_pb2_grpc, member_pb2_grpc, lending_pb2_grpc
 from app.schemas import HealthResponse, DashboardStats
 from app.grpc_clients.proto_generated import common_pb2
-from app.telemetry.setup import setup_tracing, instrument_fastapi
+from app.telemetry.setup import setup_tracing, instrument_fastapi, instrument_grpc_client, make_grpc_metadata_with_trace
 
 configure_json_logging("api-gateway")
 setup_tracing("api-gateway")
+instrument_grpc_client()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -85,6 +86,7 @@ async def dashboard_stats():
                     pagination=common_pb2.PaginationRequest(page=1, page_size=1)
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=make_grpc_metadata_with_trace(),
             )
             total_books = resp.pagination.total_count
     except Exception:
@@ -98,6 +100,7 @@ async def dashboard_stats():
                     pagination=common_pb2.PaginationRequest(page=1, page_size=1)
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=make_grpc_metadata_with_trace(),
             )
             total_members = resp.pagination.total_count
     except Exception:
@@ -111,6 +114,7 @@ async def dashboard_stats():
                     pagination=common_pb2.PaginationRequest(page=1, page_size=1)
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=make_grpc_metadata_with_trace(),
             )
             books_borrowed = borrowed_resp.pagination.total_count
 
@@ -119,6 +123,7 @@ async def dashboard_stats():
                     pagination=common_pb2.PaginationRequest(page=1, page_size=1)
                 ),
                 timeout=GRPC_TIMEOUT,
+                metadata=make_grpc_metadata_with_trace(),
             )
             overdue_books = overdue_resp.pagination.total_count
     except Exception:

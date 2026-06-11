@@ -9,6 +9,7 @@ from app.schemas import (
     BorrowRequest, ReturnRequest, LendingRecordResponse,
     ReturnResponse, PaginatedResponse, PaginationMeta,
 )
+from app.telemetry.setup import make_grpc_metadata_with_trace
 from app.grpc_clients.proto_generated import lending_pb2, lending_pb2_grpc, common_pb2
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 def grpc_metadata(request: Request) -> list[tuple[str, str]]:
     correlation_id = getattr(request.state, "correlation_id", "-")
-    return [("x-correlation-id", correlation_id)] if correlation_id and correlation_id != "-" else []
+    base = [("x-correlation-id", correlation_id)] if correlation_id and correlation_id != "-" else []
+    return make_grpc_metadata_with_trace(base)
 router = APIRouter(prefix="/api/v1/lending", tags=["Lending"])
 
 STATUS_TEXT = {0: "BORROWED", 1: "RETURNED", 2: "OVERDUE"}

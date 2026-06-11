@@ -35,6 +35,8 @@ services:
       DB_ECHO: "false"
       METRICS_PORT: 9101
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: book-service
+      OTEL_TRACES_EXPORTER: otlp
     ports:
       - "50051:50051"
       - "9101:9101"
@@ -63,6 +65,8 @@ services:
       DB_ECHO: "false"
       METRICS_PORT: 9102
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: member-service
+      OTEL_TRACES_EXPORTER: otlp
     ports:
       - "50052:50052"
       - "9102:9102"
@@ -95,6 +99,8 @@ services:
       DB_ECHO: "false"
       METRICS_PORT: 9103
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: lending-service
+      OTEL_TRACES_EXPORTER: otlp
     ports:
       - "50053:50053"
       - "9103:9103"
@@ -126,6 +132,8 @@ services:
       GRPC_TIMEOUT: 30
       PORT: 8000
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: api-gateway
+      OTEL_TRACES_EXPORTER: otlp
     ports:
       - "8000:8000"
     depends_on:

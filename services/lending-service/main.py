@@ -39,7 +39,7 @@ async def init_db():
 
 
 async def serve():
-    bootstrap("lending-service", metrics_port=METRICS_PORT)
+    bootstrap("lending-service", metrics_port=METRICS_PORT, instrument_client=True)
     await init_db()
 
     server = grpc.aio.server(

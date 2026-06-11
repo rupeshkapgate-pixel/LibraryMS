@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, status
 
 from app.grpc_clients import get_book_channel, GRPC_TIMEOUT
 from app.schemas import BookCreate, BookUpdate, BookResponse, PaginatedResponse, PaginationMeta
+from app.telemetry.setup import make_grpc_metadata_with_trace
 from app.grpc_clients.proto_generated import book_pb2, book_pb2_grpc, common_pb2
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 def grpc_metadata(request: Request) -> list[tuple[str, str]]:
     correlation_id = getattr(request.state, "correlation_id", "-")
-    return [("x-correlation-id", correlation_id)] if correlation_id and correlation_id != "-" else []
+    base = [("x-correlation-id", correlation_id)] if correlation_id and correlation_id != "-" else []
+    return make_grpc_metadata_with_trace(base)
 router = APIRouter(prefix="/api/v1/books", tags=["Books"])
 
 STATUS_MAP = {

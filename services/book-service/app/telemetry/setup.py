@@ -2,36 +2,30 @@
 Shared telemetry bootstrap for gRPC services.
 
 Provides:
-  - OpenTelemetry tracer with OTLP gRPC export
-  - Prometheus metrics: request counter, latency histogram, in-flight gauge
-  - HTTP /metrics endpoint served on a separate port (default 9090)
-  - gRPC server interceptor that records both OTel spans and Prometheus metrics
+  - OpenTelemetry SDK TracerProvider with OTLP gRPC export to Jaeger
+  - gRPC aio server instrumentation for inbound RPC spans
+  - gRPC aio client instrumentation for outbound RPC spans
+  - W3C TraceContext extraction/injection helpers
+  - Prometheus metrics: request counter, latency histogram, in-flight gauge, DB counters
+  - HTTP /metrics endpoint served on a separate port
 """
 from __future__ import annotations
 
 import logging
 import os
-import time
 import threading
-from typing import Callable
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import grpc
-
-from opentelemetry import trace
+from opentelemetry import propagate, trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.propagate import extract, inject
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.propagate import extract
-
-from prometheus_client import (
-    Counter,
-    Histogram,
-    Gauge,
-    generate_latest,
-    CONTENT_TYPE_LATEST,
-)
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from opentelemetry.trace import ProxyTracerProvider
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 logger = logging.getLogger(__name__)
 
@@ -69,22 +63,87 @@ DB_QUERY_LATENCY = Histogram(
     buckets=[0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0],
 )
 
+_TRACING_CONFIGURED = False
+_GRPC_SERVER_INSTRUMENTED = False
+_GRPC_CLIENT_INSTRUMENTED = False
+_METRICS_SERVER_STARTED = False
+
 
 # ── OpenTelemetry setup ───────────────────────────────────────────────────────
 
 def setup_tracing(service_name: str) -> trace.Tracer:
-    """Initialise the global TracerProvider and return a named tracer."""
-    otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")
+    """Initialise OpenTelemetry SDK and OTLP exporter once per process."""
+    global _TRACING_CONFIGURED
 
-    resource = Resource.create({SERVICE_NAME: service_name})
-    provider = TracerProvider(resource=resource)
+    if _TRACING_CONFIGURED:
+        return trace.get_tracer(service_name)
 
-    exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
-    provider.add_span_processor(BatchSpanProcessor(exporter))
+    current_provider = trace.get_tracer_provider()
+    if isinstance(current_provider, ProxyTracerProvider):
+        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4317")
+        resource = Resource.create(
+            {
+                SERVICE_NAME: service_name,
+                "deployment.environment": os.getenv("ENVIRONMENT", "local"),
+            }
+        )
+        provider = TracerProvider(resource=resource)
+        exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
+        provider.add_span_processor(BatchSpanProcessor(exporter))
+        trace.set_tracer_provider(provider)
+    else:
+        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "already-configured")
 
-    trace.set_tracer_provider(provider)
-    logger.info(f"OTel tracing configured for '{service_name}', exporting to {otlp_endpoint}")
+    propagate.set_global_textmap(TraceContextTextMapPropagator())
+    _TRACING_CONFIGURED = True
+    logger.info("OTel tracing configured for '%s', exporting to %s", service_name, otlp_endpoint)
     return trace.get_tracer(service_name)
+
+
+def instrument_grpc_server() -> None:
+    """Instrument grpc.aio server so inbound RPCs appear in Jaeger."""
+    global _GRPC_SERVER_INSTRUMENTED
+    if _GRPC_SERVER_INSTRUMENTED:
+        return
+    try:
+        from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorServer
+
+        GrpcAioInstrumentorServer().instrument()
+        _GRPC_SERVER_INSTRUMENTED = True
+        logger.info("OpenTelemetry gRPC aio server instrumentation enabled")
+    except Exception as exc:  # pragma: no cover - defensive startup logging
+        logger.warning("gRPC server instrumentation unavailable: %s", exc)
+
+
+def instrument_grpc_client() -> None:
+    """Instrument grpc.aio clients so outbound RPCs appear in Jaeger."""
+    global _GRPC_CLIENT_INSTRUMENTED
+    if _GRPC_CLIENT_INSTRUMENTED:
+        return
+    try:
+        from opentelemetry.instrumentation.grpc import GrpcAioInstrumentorClient
+
+        GrpcAioInstrumentorClient().instrument()
+        _GRPC_CLIENT_INSTRUMENTED = True
+        logger.info("OpenTelemetry gRPC aio client instrumentation enabled")
+    except Exception as exc:  # pragma: no cover - defensive startup logging
+        logger.warning("gRPC client instrumentation unavailable: %s", exc)
+
+
+def make_grpc_metadata_with_trace(
+    existing: list[tuple[str, str]] | None = None,
+) -> list[tuple[str, str]]:
+    """Inject current W3C TraceContext into outgoing gRPC metadata."""
+    metadata: list[tuple[str, str]] = list(existing or [])
+    carrier: dict[str, str] = {}
+    inject(carrier)
+    metadata.extend((key, value) for key, value in carrier.items())
+    return metadata
+
+
+def extract_context_from_metadata(metadata: list[tuple[str, str]] | tuple[tuple[str, str], ...] | None):
+    """Extract W3C TraceContext from gRPC metadata."""
+    return extract(dict(metadata or []))
 
 
 # ── Prometheus HTTP server ────────────────────────────────────────────────────
@@ -112,96 +171,46 @@ class _MetricsHandler(BaseHTTPRequestHandler):
 
 def start_metrics_server(port: int = 9090) -> None:
     """Start the Prometheus scrape endpoint on a background thread."""
+    global _METRICS_SERVER_STARTED
+    if _METRICS_SERVER_STARTED:
+        return
     server = HTTPServer(("0.0.0.0", port), _MetricsHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    logger.info(f"Prometheus /metrics endpoint running on :{port}")
+    _METRICS_SERVER_STARTED = True
+    logger.info("Prometheus /metrics endpoint running on :%s", port)
 
 
-# ── gRPC server interceptor ───────────────────────────────────────────────────
+# ── Legacy interceptor retained for compatibility ────────────────────────────
 
 class TelemetryInterceptor(grpc.aio.ServerInterceptor):
     """
-    Async gRPC interceptor that:
-      1. Extracts W3C TraceContext from incoming metadata and starts a child span.
-      2. Records Prometheus metrics (counter, histogram, in-flight gauge).
-      3. Tags the span with the gRPC status code on completion.
+    Compatibility interceptor.
+
+    Official OpenTelemetry gRPC aio instrumentation is now enabled through
+    instrument_grpc_server(). This interceptor is kept so older imports/tests do
+    not break, but it simply delegates to grpc.aio normally.
     """
 
     def __init__(self, service_name: str):
         self._service = service_name
-        self._tracer = trace.get_tracer(service_name)
 
-    async def intercept_service(
-        self,
-        continuation: Callable,
-        handler_call_details: grpc.HandlerCallDetails,
-    ):
+    async def intercept_service(self, continuation, handler_call_details):
         return await continuation(handler_call_details)
-
-    async def intercept_unary_unary(self, continuation, client_call_details, request):
-        return await self._intercept(continuation, client_call_details, request)
-
-    async def intercept_unary_stream(self, continuation, client_call_details, request):
-        return await self._intercept(continuation, client_call_details, request)
-
-    async def intercept_stream_unary(self, continuation, client_call_details, request_iterator):
-        return await self._intercept(continuation, client_call_details, request_iterator)
-
-    async def intercept_stream_stream(self, continuation, client_call_details, request_iterator):
-        return await self._intercept(continuation, client_call_details, request_iterator)
-
-    async def _intercept(self, continuation, client_call_details, request_or_iter):
-        method = client_call_details.method or "unknown"
-        # Strip leading slash and replace / with .
-        method_short = method.lstrip("/").replace("/", ".")
-
-        # Extract trace context from gRPC metadata
-        metadata = dict(client_call_details.metadata or [])
-        ctx = extract(metadata)
-
-        GRPC_IN_FLIGHT_GAUGE.labels(service=self._service).inc()
-        start = time.perf_counter()
-        status_code = "OK"
-
-        with self._tracer.start_as_current_span(
-            method_short,
-            context=ctx,
-            kind=trace.SpanKind.SERVER,
-        ) as span:
-            span.set_attribute("rpc.system", "grpc")
-            span.set_attribute("rpc.service", self._service)
-            span.set_attribute("rpc.method", method_short)
-            try:
-                response = await continuation(client_call_details, request_or_iter)
-                return response
-            except grpc.RpcError as exc:
-                status_code = exc.code().name
-                span.set_attribute("rpc.grpc.status_code", status_code)
-                span.record_exception(exc)
-                raise
-            except Exception as exc:
-                status_code = "INTERNAL"
-                span.record_exception(exc)
-                raise
-            finally:
-                elapsed = time.perf_counter() - start
-                GRPC_REQUEST_COUNTER.labels(
-                    service=self._service, method=method_short, status=status_code
-                ).inc()
-                GRPC_LATENCY_HISTOGRAM.labels(
-                    service=self._service, method=method_short
-                ).observe(elapsed)
-                GRPC_IN_FLIGHT_GAUGE.labels(service=self._service).dec()
 
 
 # ── Convenience bootstrap ─────────────────────────────────────────────────────
 
-def bootstrap(service_name: str, metrics_port: int = 9090) -> trace.Tracer:
+def bootstrap(service_name: str, metrics_port: int = 9090, instrument_client: bool = False) -> trace.Tracer:
     """
     Call once at service startup.
-    Initialises OTel tracing, starts Prometheus HTTP server, returns tracer.
+
+    Initialises OTel tracing, gRPC server instrumentation, optional gRPC client
+    instrumentation, and starts the Prometheus HTTP endpoint.
     """
     tracer = setup_tracing(service_name)
+    instrument_grpc_server()
+    if instrument_client:
+        instrument_grpc_client()
     start_metrics_server(metrics_port)
     return tracer
