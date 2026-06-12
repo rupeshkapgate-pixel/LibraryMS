@@ -733,6 +733,33 @@ NEXT_PUBLIC_API_URL=http://your-api-host:8000 docker compose build frontend
 
 ---
 
+## Observability
+
+The platform includes a complete observability stack.
+
+### Structured Logging
+- JSON structured logs
+- Correlation IDs propagated across services
+- Centralized log aggregation using Loki and Promtail
+
+### Metrics
+- Prometheus metrics collection
+- Service health monitoring
+- API and gRPC latency metrics
+
+### Distributed Tracing
+- OpenTelemetry instrumentation
+- Trace context propagation across REST and gRPC boundaries
+- Jaeger trace visualization
+
+### Dashboards
+- Grafana dashboards for metrics and logs
+
+Observability Stack:
+Prometheus + Grafana + Loki + Promtail + Jaeger + OpenTelemetry
+
+---
+
 ## Evaluation Checklist
 
 | Requirement                    | Status | Details                                                          |
