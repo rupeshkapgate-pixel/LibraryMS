@@ -1,7 +1,19 @@
 import axios, { AxiosError } from "axios";
 import type { Book, BookCreate, Member, MemberCreate, LendingRecord, BorrowRequest, ReturnRequest, ReturnResponse, PaginatedResponse, DashboardStats } from "@/types";
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+
+  return "http://localhost:8000";
+}
+
+export const API_BASE = getApiBaseUrl();
 
 export interface ApiError { message: string; status?: number; details?: unknown }
 
