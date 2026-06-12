@@ -760,6 +760,27 @@ Prometheus + Grafana + Loki + Promtail + Jaeger + OpenTelemetry
 
 ---
 
+## Dashboard
+
+Operational overview of books, members and lending activity.
+
+![Dashboard](screenshots/Dashboard.png)
+
+## Books Management
+
+Search, filter and manage library inventory.
+
+![Books Management](screenshots/Books%20Management.png)
+
+## Members Management
+
+Manage active library members.
+
+![Members Management](screenshots/Members%20Management.png)
+
+
+
+
 ## Evaluation Checklist
 
 | Requirement                    | Status | Details                                                          |
