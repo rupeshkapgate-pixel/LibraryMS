@@ -5,6 +5,7 @@ import { ArrowLeft, Edit } from "lucide-react";
 import { booksApi } from "@/lib/api";
 import { PageHeader, Spinner } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
+import BookAvailabilityBadge from "@/components/library/BookAvailabilityBadge";
 
 export default function BookDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -14,20 +15,20 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
   });
 
   if (isLoading) return <Spinner />;
-  if (!book) return <p className="text-red-500 p-6">Book not found.</p>;
+  if (!book) return <p className="p-6 text-red-600 dark:text-red-300">Book not found.</p>;
 
   const fields: [string, string | number | undefined | null][] = [
-    ["Title",        book.title],
-    ["Author",       book.author],
-    ["ISBN",         book.isbn],
-    ["Publisher",    book.publisher],
-    ["Category",     book.category],
-    ["Year",         book.published_year],
+    ["Title", book.title],
+    ["Author", book.author],
+    ["ISBN", book.isbn],
+    ["Publisher", book.publisher],
+    ["Category", book.category],
+    ["Year", book.published_year],
     ["Total Copies", book.total_copies],
-    ["Available",    book.available_copies],
-    ["Shelf",        book.shelf_location],
-    ["Added",        formatDate(book.created_at)],
-    ["Updated",      formatDate(book.updated_at)],
+    ["Available", book.available_copies],
+    ["Shelf", book.shelf_location],
+    ["Added", formatDate(book.created_at)],
+    ["Updated", formatDate(book.updated_at)],
   ];
 
   return (
@@ -45,22 +46,29 @@ export default function BookDetailPage({ params }: { params: { id: string } }) {
           </div>
         }
       />
-      <div className="card p-6 max-w-2xl">
-        <h2 className="text-xl font-bold text-gray-900 mb-1">{book.title}</h2>
-        <p className="text-gray-500 text-sm mb-6">by {book.author}</p>
+      <div className="card max-w-2xl p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="mb-1 text-xl font-bold text-slate-950 dark:text-slate-50">{book.title}</h2>
+            <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">by {book.author}</p>
+          </div>
+          <BookAvailabilityBadge available={book.available_copies} total={book.total_copies} />
+        </div>
         {book.description && (
-          <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-4 mb-6">{book.description}</p>
+          <p className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-200">
+            {book.description}
+          </p>
         )}
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-3">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
           {fields.map(([label, val]) => (
-            <div key={label}>
-              <dt className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{label}</dt>
-              <dd className="mt-0.5 text-sm font-medium text-gray-900">{val ?? "—"}</dd>
+            <div key={label} className="rounded-xl border border-slate-100 bg-white/50 p-3 dark:border-slate-800 dark:bg-slate-950/35">
+              <dt className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</dt>
+              <dd className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">{val ?? "—"}</dd>
             </div>
           ))}
         </dl>
-        <div className="mt-6 p-4 rounded-lg bg-emerald-50 border border-emerald-100">
-          <p className="text-sm font-semibold text-emerald-700">
+        <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/25 dark:bg-emerald-500/10">
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
             {book.available_copies} of {book.total_copies} copies available
           </p>
         </div>

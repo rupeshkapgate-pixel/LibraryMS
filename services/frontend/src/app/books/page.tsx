@@ -198,15 +198,15 @@ export default function BooksPage() {
                   {rows.map((b: Book) => (
                     <tr key={b.id}>
                       <td>
-                        <div className="max-w-[260px] truncate font-semibold text-slate-950">{b.title}</div>
+                        <div className="max-w-[260px] truncate font-semibold text-slate-950 dark:text-white">{b.title}</div>
                         <div className="text-xs text-slate-400">{b.publisher ?? "—"}</div>
                       </td>
                       <td>{b.author}</td>
                       <td className="font-mono text-xs">{b.isbn}</td>
                       <td>{b.category ?? "—"}</td>
                       <td>
-                        <span className="font-semibold text-slate-900">{b.available_copies}</span>
-                        <span className="text-slate-400"> / {b.total_copies}</span>
+                        <span className="font-semibold text-slate-900 dark:text-white">{typeof b.available_copies === "number" ? b.available_copies : "—"}</span>
+                        <span className="text-slate-400 dark:text-slate-400"> / {typeof b.total_copies === "number" ? b.total_copies : "—"}</span>
                       </td>
                       <td>{b.shelf_location ?? "—"}</td>
                       <td>
@@ -215,7 +215,7 @@ export default function BooksPage() {
                       <td>
                         <div className="flex justify-end gap-1">
                           <button
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                             onClick={() => router.push(`/books/${b.id}`)}
                             title="View"
                             type="button"
@@ -223,7 +223,7 @@ export default function BooksPage() {
                             <Eye size={16} />
                           </button>
                           <button
-                            className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-600"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
                             onClick={() => router.push(`/books/${b.id}/edit`)}
                             title="Edit"
                             type="button"
@@ -231,7 +231,7 @@ export default function BooksPage() {
                             <Edit size={16} />
                           </button>
                           <button
-                            className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
+                            className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
                             onClick={() => setDeleteId(b.id)}
                             title="Delete"
                             type="button"
