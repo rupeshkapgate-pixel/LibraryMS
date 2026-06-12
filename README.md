@@ -778,7 +778,57 @@ Manage active library members.
 
 ![Members Management](screenshots/Members%20Management.png)
 
+## Borrow Book Workflow
 
+### Issue Book
+
+![Borrow Book Form](screenshots/Borrow%20Book-1.png)
+
+### Successful Borrow
+
+![Borrow Book Success](screenshots/Borrow%20Book-2.png)
+
+
+## Return Book Workflow
+
+### Return Book
+
+![Return Book Form](screenshots/Return%20Book-1.png)
+
+### Successful Return
+
+![Return Book Success](screenshots/Return%20Book-2.png)
+
+
+## Borrowed Books
+
+Track currently issued books and due dates.
+
+![Borrowed Books](screenshots/BorrowedBooks.png)
+
+## API Documentation
+
+Swagger/OpenAPI documentation exposed by API Gateway.
+
+![Swagger](screenshots/Swagger%20API.png)
+
+## Docker Deployment
+
+All services running through Docker Compose.
+
+![Docker](screenshots/Docker%20Running.png)
+
+## CI/CD Pipeline
+
+GitHub Actions pipeline with linting, testing, Docker builds and security scans.
+
+![GitHub Actions](screenshots/Github%20CI%20Pipeline.png)
+
+## Distributed Tracing
+
+OpenTelemetry traces visualized in Jaeger.
+
+![Jaeger](screenshots/jaeger-trace.png)
 
 
 ## Evaluation Checklist
