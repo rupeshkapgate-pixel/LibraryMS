@@ -35,11 +35,98 @@ The Library Management System manages the complete lifecycle of:
 
 ### Key Design Decisions
 
-- **Microservices**: Each domain (Books, Members, Lending) is an independent service with its own database schema and gRPC API
-- **API Gateway**: Single entry point for the frontend — handles REST↔gRPC translation, CORS, correlation IDs, and request logging
-- **Async-first**: All services use async Python (asyncio + grpc.aio + asyncpg) for high throughput
-- **Schema isolation**: One PostgreSQL instance with three logical schemas (`books_db`, `members_db`, `lending_db`) — simulates separate databases while keeping local dev simple
+### Microservices by Domain
 
+The system is split into three domain services:
+
+- Book Service
+- Member Service
+- Lending Service
+
+Each service owns its own data model, database schema, and gRPC contract. This keeps domain logic isolated, improves maintainability, and allows each service to evolve independently.
+
+### REST API Gateway + Internal gRPC
+
+The frontend communicates with a single FastAPI API Gateway over REST.
+
+Internally, the API Gateway communicates with backend services using gRPC and Protocol Buffers.
+
+This provides:
+
+- Simple browser-friendly REST APIs for the frontend
+- Strongly typed service-to-service contracts
+- Clear service boundaries
+- Better performance for internal communication
+
+### Async-first Python
+
+All backend services use async Python with:
+
+- asyncio
+- grpc.aio
+- asyncpg
+- SQLAlchemy async support
+
+This keeps the services lightweight and improves concurrency for I/O-heavy operations such as database calls and service-to-service communication.
+
+### PostgreSQL Schema Isolation
+
+For local development simplicity, the system uses a single PostgreSQL instance with three logical schemas:
+
+- books_db
+- members_db
+- lending_db
+
+This simulates service-owned databases while keeping Docker Compose setup simple.
+
+In a production deployment, these schemas can be migrated to separate PostgreSQL databases without changing the service boundaries.
+
+### Lending Consistency
+
+Borrow and return workflows are coordinated by the Lending Service.
+
+The Lending Service validates members through Member Service and updates inventory through Book Service using gRPC.
+
+For failure scenarios, the design follows a simple Saga-style approach with compensation where needed, such as restoring book availability if lending creation fails after inventory reservation.
+
+### Container-first Deployment
+
+The project is designed to run consistently using Docker Compose locally and Kubernetes manifests for cluster deployment.
+
+Each service has its own Dockerfile, health check, configuration, and resource limits.
+
+### Observability and Monitoring
+
+The platform includes foundational observability capabilities to support troubleshooting, monitoring, and operational visibility.
+
+#### Structured JSON Logging
+
+All services emit structured JSON logs instead of plain text logs.
+
+Each log entry includes:
+
+- timestamp
+- service_name
+- log_level
+- correlation_id
+- request_id
+- operation
+- message
+
+Example:
+
+```json
+{
+  "timestamp": "2026-06-12T10:15:23Z",
+  "service": "lending-service",
+  "level": "INFO",
+  "correlation_id": "c7a8d3f2",
+  "operation": "borrow_book",
+  "member_id": 101,
+  "book_id": 55,
+  "message": "Book borrowed successfully"
+}
+```
 ---
 
 ## Architecture
