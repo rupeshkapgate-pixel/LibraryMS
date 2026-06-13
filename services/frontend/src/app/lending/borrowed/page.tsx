@@ -1,30 +1,28 @@
 "use client";
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RotateCcw, Search } from "lucide-react";
 import { lendingApi } from "@/lib/api";
-import {
-  EmptyState,
-  ErrorState,
-  LoadingSkeleton,
-  PageHeader,
-  Pagination,
-  Select,
-} from "@/components/ui";
+import { DataTable, PageHeader, Select } from "@/components/ui";
+import type { Column } from "@/components/ui";
 import LendingStatusBadge from "@/components/library/LendingStatusBadge";
 import { formatCurrency, formatDate, shortId } from "@/lib/utils";
 import { getDaysOverdue, getDueStatusLabel, isOverdue } from "@/lib/dateUtils";
 import type { LendingRecord } from "@/types";
 import { getErrorMessage } from "@/lib/error";
+
 export default function BorrowedBooksPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+
   const q = useQuery({
     queryKey: ["lending", "borrowed", page],
     queryFn: () => lendingApi.listBorrowed(page, 20).then((r) => r.data),
   });
+
   const rows = useMemo(() => {
     let list = q.data?.data ?? [];
     const s = search.toLowerCase();
@@ -38,10 +36,74 @@ export default function BorrowedBooksPage() {
     if (filter === "current") list = list.filter((r) => !isOverdue(r.due_date));
     return list;
   }, [q.data, search, filter]);
+
   function timeLabel(r: LendingRecord) {
     if (r.status === "RETURNED") return "Returned";
     return getDueStatusLabel(r.due_date);
   }
+
+  const columns: Column<LendingRecord>[] = [
+    {
+      header: "Book",
+      cell: (r) => (
+        <>
+          <div className="font-semibold text-slate-950 dark:text-white">
+            {r.book_title ?? shortId(r.book_id)}
+          </div>
+          <div className="font-mono text-xs text-slate-400">{shortId(r.book_id)}</div>
+        </>
+      ),
+    },
+    {
+      header: "Member",
+      cell: (r) => (
+        <>
+          <div>{r.member_name ?? shortId(r.member_id)}</div>
+          <div className="text-xs text-slate-400">{r.member_email ?? "—"}</div>
+        </>
+      ),
+    },
+    { header: "Borrowed Date", cell: (r) => formatDate(r.borrowed_at) },
+    { header: "Due Date", cell: (r) => formatDate(r.due_date) },
+    {
+      header: "Days Remaining / Overdue",
+      cell: (r) => (
+        <span
+          className={
+            isOverdue(r.due_date)
+              ? "font-semibold text-red-600 dark:text-red-300"
+              : "font-medium text-slate-700 dark:text-slate-200"
+          }
+        >
+          {timeLabel(r)}
+        </span>
+      ),
+    },
+    {
+      header: "Status",
+      cell: (r) => (
+        <>
+          <LendingStatusBadge status={isOverdue(r.due_date) ? "OVERDUE" : "BORROWED"} />
+          {isOverdue(r.due_date) && getDaysOverdue(r.due_date) > 0 && (
+            <div className="mt-1 text-xs font-semibold text-red-600 dark:text-red-300">
+              {formatCurrency(getDaysOverdue(r.due_date) * 10)}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      header: "Actions",
+      align: "right",
+      cell: () => (
+        <Link href="/lending/return" className="btn-secondary px-3 py-2">
+          <RotateCcw size={15} />
+          Return
+        </Link>
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -56,109 +118,37 @@ export default function BorrowedBooksPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search book, member, email, record…"
+            aria-label="Search borrowed records"
           />
         </div>
-        <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
+        <Select value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter records">
           <option value="all">All records</option>
           <option value="current">Current</option>
           <option value="overdue">Overdue</option>
         </Select>
       </div>
-      <div className="card overflow-hidden">
-        {q.isLoading ? (
-          <LoadingSkeleton rows={7} />
-        ) : q.isError ? (
-          <ErrorState
-            message={getErrorMessage(
-              q.error,
-              "Unable to load borrowed records",
-            )}
-          />
-        ) : !rows.length ? (
-          <EmptyState
-            title="No borrowed books"
-            message="Active lending records will appear here."
-          />
-        ) : (
-          <>
-            <div className="table-container rounded-none border-0">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Book</th>
-                    <th>Member</th>
-                    <th>Borrowed Date</th>
-                    <th>Due Date</th>
-                    <th>Days Remaining / Overdue</th>
-                    <th>Status</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r: LendingRecord) => (
-                    <tr key={r.id}>
-                      <td>
-                        <div className="font-semibold text-slate-950 dark:text-white">
-                          {r.book_title ?? shortId(r.book_id)}
-                        </div>
-                        <div className="font-mono text-xs text-slate-400">
-                          {shortId(r.book_id)}
-                        </div>
-                      </td>
-                      <td>
-                        <div>{r.member_name ?? shortId(r.member_id)}</div>
-                        <div className="text-xs text-slate-400">
-                          {r.member_email ?? "—"}
-                        </div>
-                      </td>
-                      <td>{formatDate(r.borrowed_at)}</td>
-                      <td>{formatDate(r.due_date)}</td>
-                      <td
-                        className={
-                          isOverdue(r.due_date)
-                            ? "font-semibold text-red-600 dark:text-red-300"
-                            : "font-medium text-slate-700 dark:text-slate-200"
-                        }
-                      >
-                        {timeLabel(r)}
-                      </td>
-                      <td>
-                        <LendingStatusBadge
-                          status={
-                            isOverdue(r.due_date) ? "OVERDUE" : "BORROWED"
-                          }
-                        />
-                        {isOverdue(r.due_date) &&
-                          getDaysOverdue(r.due_date) > 0 && (
-                            <div className="mt-1 text-xs font-semibold text-red-600 dark:text-red-300">
-                              {formatCurrency(getDaysOverdue(r.due_date) * 10)}
-                            </div>
-                          )}
-                      </td>
-                      <td className="text-right">
-                        <Link
-                          href="/lending/return"
-                          className="btn-secondary px-3 py-2"
-                        >
-                          <RotateCcw size={15} />
-                          Return
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={q.data!.pagination.page}
-              totalPages={q.data!.pagination.total_pages}
-              totalCount={q.data!.pagination.total_count}
-              pageSize={q.data!.pagination.page_size}
-              onPage={setPage}
-            />
-          </>
-        )}
-      </div>
+
+      <DataTable<LendingRecord>
+        columns={columns}
+        data={rows}
+        rowKey={(r) => r.id}
+        isLoading={q.isLoading}
+        isError={q.isError}
+        errorMessage={getErrorMessage(q.error, "Unable to load borrowed records")}
+        emptyTitle="No borrowed books"
+        emptyMessage="Active lending records will appear here."
+        pagination={
+          q.data
+            ? {
+                page: q.data.pagination.page,
+                totalPages: q.data.pagination.total_pages,
+                totalCount: q.data.pagination.total_count,
+                pageSize: q.data.pagination.page_size,
+                onPageChange: setPage,
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

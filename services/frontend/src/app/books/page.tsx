@@ -9,13 +9,11 @@ import { booksApi } from "@/lib/api";
 import {
   Button,
   ConfirmDialog,
-  EmptyState,
-  ErrorState,
-  LoadingSkeleton,
+  DataTable,
   PageHeader,
-  Pagination,
   Select,
 } from "@/components/ui";
+import type { Column } from "@/components/ui";
 import BookAvailabilityBadge from "@/components/library/BookAvailabilityBadge";
 import type { Book } from "@/types";
 import { getErrorMessage } from "@/lib/error";
@@ -95,6 +93,76 @@ export default function BooksPage() {
     return list;
   }, [q.data, availability, sort, category, debouncedSearch]);
 
+  const columns: Column<Book>[] = [
+    {
+      header: "Title",
+      cell: (b) => (
+        <>
+          <div className="max-w-[260px] truncate font-semibold text-slate-950 dark:text-white">
+            {b.title}
+          </div>
+          <div className="text-xs text-slate-400">{b.publisher ?? "—"}</div>
+        </>
+      ),
+    },
+    { header: "Author", cell: (b) => b.author },
+    { header: "ISBN", cell: (b) => b.isbn, cellClassName: "font-mono text-xs" },
+    { header: "Category", cell: (b) => b.category ?? "—" },
+    {
+      header: "Available / Total Copies",
+      cell: (b) => (
+        <>
+          <span className="font-semibold text-slate-900 dark:text-white">
+            {typeof b.available_copies === "number" ? b.available_copies : "—"}
+          </span>
+          <span className="text-slate-400 dark:text-slate-400">
+            {" "}
+            / {typeof b.total_copies === "number" ? b.total_copies : "—"}
+          </span>
+        </>
+      ),
+    },
+    { header: "Shelf", cell: (b) => b.shelf_location ?? "—" },
+    {
+      header: "Status",
+      cell: (b) => (
+        <BookAvailabilityBadge available={b.available_copies} total={b.total_copies} />
+      ),
+    },
+    {
+      header: "Actions",
+      align: "right",
+      cell: (b) => (
+        <div className="flex justify-end gap-1">
+          <button
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+            onClick={() => router.push(`/books/${b.id}`)}
+            title="View"
+            type="button"
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
+            onClick={() => router.push(`/books/${b.id}/edit`)}
+            title="Edit"
+            type="button"
+          >
+            <Edit size={16} />
+          </button>
+          <button
+            className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
+            onClick={() => setDeleteId(b.id)}
+            title="Delete"
+            type="button"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -167,94 +235,28 @@ export default function BooksPage() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        {q.isLoading ? (
-          <LoadingSkeleton rows={7} />
-        ) : q.isError ? (
-          <ErrorState message={getErrorMessage(q.error, "Unable to load books")} />
-        ) : !rows.length ? (
-          <EmptyState
-            title="No books found"
-            message="Try a different search/filter or add a new catalogue item."
-            action={<Button onClick={() => router.push("/books/add")}>Add Book</Button>}
-          />
-        ) : (
-          <>
-            <div className="table-container rounded-none border-0">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Author</th>
-                    <th>ISBN</th>
-                    <th>Category</th>
-                    <th>Available / Total Copies</th>
-                    <th>Shelf</th>
-                    <th>Status</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((b: Book) => (
-                    <tr key={b.id}>
-                      <td>
-                        <div className="max-w-[260px] truncate font-semibold text-slate-950 dark:text-white">{b.title}</div>
-                        <div className="text-xs text-slate-400">{b.publisher ?? "—"}</div>
-                      </td>
-                      <td>{b.author}</td>
-                      <td className="font-mono text-xs">{b.isbn}</td>
-                      <td>{b.category ?? "—"}</td>
-                      <td>
-                        <span className="font-semibold text-slate-900 dark:text-white">{typeof b.available_copies === "number" ? b.available_copies : "—"}</span>
-                        <span className="text-slate-400 dark:text-slate-400"> / {typeof b.total_copies === "number" ? b.total_copies : "—"}</span>
-                      </td>
-                      <td>{b.shelf_location ?? "—"}</td>
-                      <td>
-                        <BookAvailabilityBadge available={b.available_copies} total={b.total_copies} />
-                      </td>
-                      <td>
-                        <div className="flex justify-end gap-1">
-                          <button
-                            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-                            onClick={() => router.push(`/books/${b.id}`)}
-                            title="View"
-                            type="button"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            className="rounded-lg p-2 text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
-                            onClick={() => router.push(`/books/${b.id}/edit`)}
-                            title="Edit"
-                            type="button"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-500/10 dark:hover:text-red-300"
-                            onClick={() => setDeleteId(b.id)}
-                            title="Delete"
-                            type="button"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              page={q.data!.pagination.page}
-              totalPages={q.data!.pagination.total_pages}
-              totalCount={q.data!.pagination.total_count}
-              pageSize={q.data!.pagination.page_size}
-              onPage={setPage}
-            />
-          </>
-        )}
-      </div>
+      <DataTable<Book>
+        columns={columns}
+        data={rows}
+        rowKey={(b) => b.id}
+        isLoading={q.isLoading}
+        isError={q.isError}
+        errorMessage={getErrorMessage(q.error, "Unable to load books")}
+        emptyTitle="No books found"
+        emptyMessage="Try a different search/filter or add a new catalogue item."
+        emptyAction={<Button onClick={() => router.push("/books/add")}>Add Book</Button>}
+        pagination={
+          q.data
+            ? {
+                page: q.data.pagination.page,
+                totalPages: q.data.pagination.total_pages,
+                totalCount: q.data.pagination.total_count,
+                pageSize: q.data.pagination.page_size,
+                onPageChange: setPage,
+              }
+            : undefined
+        }
+      />
 
       <ConfirmDialog
         open={!!deleteId}

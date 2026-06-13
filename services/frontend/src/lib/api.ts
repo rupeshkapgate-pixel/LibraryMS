@@ -1,62 +1,140 @@
 import axios, { AxiosError } from "axios";
-import type { Book, BookCreate, Member, MemberCreate, LendingRecord, BorrowRequest, ReturnRequest, ReturnResponse, PaginatedResponse, DashboardStats } from "@/types";
+import type {
+  Book,
+  BookCreate,
+  Member,
+  MemberCreate,
+  LendingRecord,
+  BorrowRequest,
+  ReturnRequest,
+  ReturnResponse,
+  PaginatedResponse,
+  DashboardStats,
+} from "@/types";
+import { API_CONFIG } from "@/lib/config";
+import { API_ENDPOINTS } from "@/lib/endpoints";
 
-export function getApiBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_BASE_URL) {
-    return process.env.NEXT_PUBLIC_API_BASE_URL;
-  }
+// Re-exported for backward compatibility with existing imports.
+export { getApiBaseUrl, API_BASE } from "@/lib/config";
 
-  if (typeof window !== "undefined") {
-    return `${window.location.protocol}//${window.location.hostname}:8000`;
-  }
-
-  return "http://localhost:8000";
+export interface ApiError {
+  message: string;
+  status?: number;
+  details?: unknown;
 }
 
-export const API_BASE = getApiBaseUrl();
-
-export interface ApiError { message: string; status?: number; details?: unknown }
-
-export function normalizeApiError(error: unknown, fallback = "Something went wrong"): ApiError {
+export function normalizeApiError(
+  error: unknown,
+  fallback = "Something went wrong",
+): ApiError {
   if (axios.isAxiosError(error)) {
     const err = error as AxiosError<{ detail?: string; message?: string }>;
-    return { message: err.response?.data?.detail || err.response?.data?.message || err.message || fallback, status: err.response?.status, details: err.response?.data };
+    return {
+      message:
+        err.response?.data?.detail ||
+        err.response?.data?.message ||
+        err.message ||
+        fallback,
+      status: err.response?.status,
+      details: err.response?.data,
+    };
   }
   if (error instanceof Error) return { message: error.message };
   return { message: fallback };
 }
 
-export const api = axios.create({ baseURL: API_BASE, timeout: 30_000, headers: { "Content-Type": "application/json" } });
+export const api = axios.create({
+  baseURL: API_CONFIG.baseUrl,
+  timeout: API_CONFIG.timeoutMs,
+  headers: { ...API_CONFIG.defaultHeaders },
+});
+
+/** Clamp a requested page size to the configured maximum. */
+const clampPageSize = (pageSize: number) =>
+  Math.min(pageSize, API_CONFIG.maxPageSize);
+
+const DEFAULT_PAGE_SIZE: number = API_CONFIG.defaultPageSize;
 
 export const booksApi = {
-  list: (page = 1, pageSize = 20, category?: string, sortBy?: string, sortOrder?: string) => api.get<PaginatedResponse<Book>>("/api/v1/books", {
-    params: { page, page_size: Math.min(pageSize, 100), ...(category ? { category } : {}), ...(sortBy ? { sort_by: sortBy } : {}), ...(sortOrder ? { sort_order: sortOrder } : {}) },
-  }),
-  get: (id: string) => api.get<Book>(`/api/v1/books/${id}`),
-  create: (data: BookCreate) => api.post<Book>("/api/v1/books", data),
-  update: (id: string, data: BookCreate) => api.put<Book>(`/api/v1/books/${id}`, data),
-  delete: (id: string) => api.delete(`/api/v1/books/${id}`),
-  search: (q: string, searchBy = "all", page = 1, pageSize = 20) => api.get<PaginatedResponse<Book>>("/api/v1/books/search", { params: { q, search_by: searchBy, page, page_size: Math.min(pageSize, 100) } }),
+  list: (
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE,
+    category?: string,
+    sortBy?: string,
+    sortOrder?: string,
+  ) =>
+    api.get<PaginatedResponse<Book>>(API_ENDPOINTS.books.root, {
+      params: {
+        page,
+        page_size: clampPageSize(pageSize),
+        ...(category ? { category } : {}),
+        ...(sortBy ? { sort_by: sortBy } : {}),
+        ...(sortOrder ? { sort_order: sortOrder } : {}),
+      },
+    }),
+  get: (id: string) => api.get<Book>(API_ENDPOINTS.books.byId(id)),
+  create: (data: BookCreate) => api.post<Book>(API_ENDPOINTS.books.root, data),
+  update: (id: string, data: BookCreate) =>
+    api.put<Book>(API_ENDPOINTS.books.byId(id), data),
+  delete: (id: string) => api.delete(API_ENDPOINTS.books.byId(id)),
+  search: (q: string, searchBy = "all", page = 1, pageSize = DEFAULT_PAGE_SIZE) =>
+    api.get<PaginatedResponse<Book>>(API_ENDPOINTS.books.search, {
+      params: { q, search_by: searchBy, page, page_size: clampPageSize(pageSize) },
+    }),
 };
 
 export const membersApi = {
-  list: (page = 1, pageSize = 20, sortBy?: string, sortOrder?: string) => api.get<PaginatedResponse<Member>>("/api/v1/members", {
-    params: { page, page_size: Math.min(pageSize, 100), ...(sortBy ? { sort_by: sortBy } : {}), ...(sortOrder ? { sort_order: sortOrder } : {}) },
-  }),
-  get: (id: string) => api.get<Member>(`/api/v1/members/${id}`),
-  create: (data: MemberCreate) => api.post<Member>("/api/v1/members", data),
-  update: (id: string, data: MemberCreate) => api.put<Member>(`/api/v1/members/${id}`, data),
-  deactivate: (id: string) => api.delete(`/api/v1/members/${id}`),
+  list: (
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE,
+    sortBy?: string,
+    sortOrder?: string,
+  ) =>
+    api.get<PaginatedResponse<Member>>(API_ENDPOINTS.members.root, {
+      params: {
+        page,
+        page_size: clampPageSize(pageSize),
+        ...(sortBy ? { sort_by: sortBy } : {}),
+        ...(sortOrder ? { sort_order: sortOrder } : {}),
+      },
+    }),
+  get: (id: string) => api.get<Member>(API_ENDPOINTS.members.byId(id)),
+  create: (data: MemberCreate) =>
+    api.post<Member>(API_ENDPOINTS.members.root, data),
+  update: (id: string, data: MemberCreate) =>
+    api.put<Member>(API_ENDPOINTS.members.byId(id), data),
+  deactivate: (id: string) => api.delete(API_ENDPOINTS.members.byId(id)),
 };
 
 export const lendingApi = {
-  borrow: (data: BorrowRequest) => api.post<LendingRecord>("/api/v1/lending/borrow", data),
-  return: (data: ReturnRequest) => api.post<ReturnResponse>("/api/v1/lending/return", data),
-  listBorrowed: (page = 1, pageSize = 20) => api.get<PaginatedResponse<LendingRecord>>("/api/v1/lending/borrowed", { params: { page, page_size: Math.min(pageSize, 100) } }),
-  listByMember: (memberId: string, page = 1, pageSize = 20) => api.get<PaginatedResponse<LendingRecord>>(`/api/v1/lending/member/${memberId}`, { params: { page, page_size: Math.min(pageSize, 100) } }),
-  bookHistory: (bookId: string, page = 1, pageSize = 20) => api.get<PaginatedResponse<LendingRecord>>(`/api/v1/lending/book/${bookId}/history`, { params: { page, page_size: Math.min(pageSize, 100) } }),
-  overdue: (page = 1, pageSize = 20) => api.get<PaginatedResponse<LendingRecord>>("/api/v1/lending/overdue", { params: { page, page_size: Math.min(pageSize, 100) } }),
+  borrow: (data: BorrowRequest) =>
+    api.post<LendingRecord>(API_ENDPOINTS.lending.borrow, data),
+  return: (data: ReturnRequest) =>
+    api.post<ReturnResponse>(API_ENDPOINTS.lending.return, data),
+  listBorrowed: (page = 1, pageSize = DEFAULT_PAGE_SIZE) =>
+    api.get<PaginatedResponse<LendingRecord>>(API_ENDPOINTS.lending.borrowed, {
+      params: { page, page_size: clampPageSize(pageSize) },
+    }),
+  listByMember: (memberId: string, page = 1, pageSize = DEFAULT_PAGE_SIZE) =>
+    api.get<PaginatedResponse<LendingRecord>>(
+      API_ENDPOINTS.lending.byMember(memberId),
+      { params: { page, page_size: clampPageSize(pageSize) } },
+    ),
+  bookHistory: (bookId: string, page = 1, pageSize = DEFAULT_PAGE_SIZE) =>
+    api.get<PaginatedResponse<LendingRecord>>(
+      API_ENDPOINTS.lending.bookHistory(bookId),
+      { params: { page, page_size: clampPageSize(pageSize) } },
+    ),
+  overdue: (page = 1, pageSize = DEFAULT_PAGE_SIZE) =>
+    api.get<PaginatedResponse<LendingRecord>>(API_ENDPOINTS.lending.overdue, {
+      params: { page, page_size: clampPageSize(pageSize) },
+    }),
 };
 
-export const dashboardApi = { stats: () => api.get<DashboardStats>("/api/v1/dashboard") };
-export const healthApi = { check: () => api.get("/health") };
+export const dashboardApi = {
+  stats: () => api.get<DashboardStats>(API_ENDPOINTS.dashboard),
+};
+
+export const healthApi = {
+  check: () => api.get(API_ENDPOINTS.health),
+};

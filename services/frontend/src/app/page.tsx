@@ -19,12 +19,13 @@ import {
 } from "lucide-react";
 import { dashboardApi, lendingApi } from "@/lib/api";
 import {
-  EmptyState,
+  DataTable,
   ErrorState,
   LoadingSkeleton,
   PageHeader,
   StatCard,
 } from "@/components/ui";
+import type { Column } from "@/components/ui";
 import LendingStatusBadge from "@/components/library/LendingStatusBadge";
 import {
   countLocalActivity,
@@ -150,6 +151,55 @@ export default function DashboardPage() {
     { label: "Active", value: borrowed, tone: "amber" },
     { label: "Returned", value: returnedFromBrowser, tone: "emerald" },
     { label: "Overdue", value: overdue, tone: "red" },
+  ];
+
+  const recentColumns: Column<LendingRecord>[] = [
+    {
+      header: "Book",
+      cell: (r) => (
+        <>
+          <div className="font-semibold text-slate-900 dark:text-white">
+            {r.book_title ?? shortId(r.book_id)}
+          </div>
+          <div className="font-mono text-xs text-slate-400">{shortId(r.book_id)}</div>
+        </>
+      ),
+    },
+    {
+      header: "Member",
+      cell: (r) => (
+        <>
+          <div>{r.member_name ?? shortId(r.member_id)}</div>
+          <div className="text-xs text-slate-400">{r.member_email ?? "—"}</div>
+        </>
+      ),
+    },
+    { header: "Due", cell: (r) => formatDate(r.due_date) },
+    {
+      header: "Status",
+      cell: (r) => (
+        <LendingStatusBadge
+          status={
+            r.status === "RETURNED"
+              ? "RETURNED"
+              : isOverdue(r.due_date)
+                ? "OVERDUE"
+                : "BORROWED"
+          }
+        />
+      ),
+    },
+    {
+      header: "Fine",
+      cell: (r) =>
+        calculateFine(r.due_date) > 0 ? (
+          <span className="font-semibold text-red-600 dark:text-red-300">
+            {formatCurrency(calculateFine(r.due_date))}
+          </span>
+        ) : (
+          "—"
+        ),
+    },
   ];
 
   return (
@@ -291,71 +341,17 @@ export default function DashboardPage() {
               View all
             </Link>
           </div>
-          {recent.isLoading ? (
-            <LoadingSkeleton rows={5} />
-          ) : recent.isError ? (
-            <ErrorState />
-          ) : !recent.data?.data?.length ? (
-            <EmptyState
-              title="No lending activity"
-              message="Borrowed books will appear here once staff issues a book."
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Book</th>
-                    <th>Member</th>
-                    <th>Due</th>
-                    <th>Status</th>
-                    <th>Fine</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.data.data.map((r: LendingRecord) => (
-                    <tr key={r.id}>
-                      <td>
-                        <div className="font-semibold text-slate-900 dark:text-white">
-                          {r.book_title ?? shortId(r.book_id)}
-                        </div>
-                        <div className="font-mono text-xs text-slate-400">
-                          {shortId(r.book_id)}
-                        </div>
-                      </td>
-                      <td>
-                        <div>{r.member_name ?? shortId(r.member_id)}</div>
-                        <div className="text-xs text-slate-400">
-                          {r.member_email ?? "—"}
-                        </div>
-                      </td>
-                      <td>{formatDate(r.due_date)}</td>
-                      <td>
-                        <LendingStatusBadge
-                          status={
-                            r.status === "RETURNED"
-                              ? "RETURNED"
-                              : isOverdue(r.due_date)
-                                ? "OVERDUE"
-                                : "BORROWED"
-                          }
-                        />
-                      </td>
-                      <td>
-                        {calculateFine(r.due_date) > 0 ? (
-                          <span className="font-semibold text-red-600 dark:text-red-300">
-                            {formatCurrency(calculateFine(r.due_date))}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable<LendingRecord>
+            bare
+            loadingRows={5}
+            columns={recentColumns}
+            data={recent.data?.data ?? []}
+            rowKey={(r) => r.id}
+            isLoading={recent.isLoading}
+            isError={recent.isError}
+            emptyTitle="No lending activity"
+            emptyMessage="Borrowed books will appear here once staff issues a book."
+          />
         </div>
         <div className="space-y-6">
           <div className="card p-5">
