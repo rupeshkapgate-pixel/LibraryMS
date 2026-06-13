@@ -692,6 +692,13 @@ Track currently issued books and due dates.
 
 ![Borrowed Books](screenshots/BorrowedBooks.png)
 
+## Overdue Books
+
+Track currently issued books and due dates.
+
+![Borrowed Books](screenshots/Overdue%20Books.png)
+
+
 ## API Documentation
 
 Swagger/OpenAPI documentation exposed by API Gateway.
