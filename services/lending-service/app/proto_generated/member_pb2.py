@@ -22,18 +22,18 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-import common_pb2 as common__pb2
+from . import common_pb2 as common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cmember.proto\x12\x06member\x1a\x0c\x63ommon.proto\"\xc7\x01\n\x06Member\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\tfull_name\x18\x02 \x01(\t\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\r\n\x05phone\x18\x04 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x05 \x01(\t\x12\x33\n\x11membership_status\x18\x06 \x01(\x0e\x32\x18.member.MembershipStatus\x12\x12\n\ncreated_at\x18\x07 \x01(\t\x12\x12\n\nupdated_at\x18\x08 \x01(\t\x12\x12\n\ndeleted_at\x18\t \x01(\t\"W\n\x13\x43reateMemberRequest\x12\x11\n\tfull_name\x18\x01 \x01(\t\x12\r\n\x05\x65mail\x18\x02 \x01(\t\x12\r\n\x05phone\x18\x03 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x04 \x01(\t\"c\n\x13UpdateMemberRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\tfull_name\x18\x02 \x01(\t\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\r\n\x05phone\x18\x04 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x05 \x01(\t\"\x1e\n\x10GetMemberRequest\x12\n\n\x02id\x18\x01 \x01(\t\"%\n\x17\x44\x65\x61\x63tivateMemberRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\xac\x01\n\x12ListMembersRequest\x12-\n\npagination\x18\x01 \x01(\x0b\x32\x19.common.PaginationRequest\x12(\n\x06status\x18\x02 \x01(\x0e\x32\x18.member.MembershipStatus\x12\x18\n\x10\x66ilter_by_status\x18\x03 \x01(\x08\x12\x0f\n\x07sort_by\x18\x04 \x01(\t\x12\x12\n\nsort_order\x18\x05 \x01(\t\"f\n\x13ListMembersResponse\x12\x1f\n\x07members\x18\x01 \x03(\x0b\x32\x0e.member.Member\x12.\n\npagination\x18\x02 \x01(\x0b\x32\x1a.common.PaginationResponse\"0\n\x1bValidateActiveMemberRequest\x12\x11\n\tmember_id\x18\x01 \x01(\t\"b\n\x1cValidateActiveMemberResponse\x12\x11\n\tis_active\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x1e\n\x06member\x18\x03 \x01(\x0b\x32\x0e.member.Member*,\n\x10MembershipStatus\x12\n\n\x06\x41\x43TIVE\x10\x00\x12\x0c\n\x08INACTIVE\x10\x01\x32\xb0\x03\n\rMemberService\x12;\n\x0c\x43reateMember\x12\x1b.member.CreateMemberRequest\x1a\x0e.member.Member\x12;\n\x0cUpdateMember\x12\x1b.member.UpdateMemberRequest\x1a\x0e.member.Member\x12\x35\n\tGetMember\x12\x18.member.GetMemberRequest\x1a\x0e.member.Member\x12\x46\n\x0bListMembers\x12\x1a.member.ListMembersRequest\x1a\x1b.member.ListMembersResponse\x12\x61\n\x14ValidateActiveMember\x12#.member.ValidateActiveMemberRequest\x1a$.member.ValidateActiveMemberResponse\x12\x43\n\x10\x44\x65\x61\x63tivateMember\x12\x1f.member.DeactivateMemberRequest\x1a\x0e.member.Memberb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0cmember.proto\x12\x06member\x1a\x0c\x63ommon.proto\"\xc7\x01\n\x06Member\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\tfull_name\x18\x02 \x01(\t\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\r\n\x05phone\x18\x04 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x05 \x01(\t\x12\x33\n\x11membership_status\x18\x06 \x01(\x0e\x32\x18.member.MembershipStatus\x12\x12\n\ncreated_at\x18\x07 \x01(\t\x12\x12\n\nupdated_at\x18\x08 \x01(\t\x12\x12\n\ndeleted_at\x18\t \x01(\t\"W\n\x13\x43reateMemberRequest\x12\x11\n\tfull_name\x18\x01 \x01(\t\x12\r\n\x05\x65mail\x18\x02 \x01(\t\x12\r\n\x05phone\x18\x03 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x04 \x01(\t\"c\n\x13UpdateMemberRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\tfull_name\x18\x02 \x01(\t\x12\r\n\x05\x65mail\x18\x03 \x01(\t\x12\r\n\x05phone\x18\x04 \x01(\t\x12\x0f\n\x07\x61\x64\x64ress\x18\x05 \x01(\t\"\x1e\n\x10GetMemberRequest\x12\n\n\x02id\x18\x01 \x01(\t\"%\n\x17\x44\x65\x61\x63tivateMemberRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\xbb\x01\n\x12ListMembersRequest\x12-\n\npagination\x18\x01 \x01(\x0b\x32\x19.common.PaginationRequest\x12(\n\x06status\x18\x02 \x01(\x0e\x32\x18.member.MembershipStatus\x12\x18\n\x10\x66ilter_by_status\x18\x03 \x01(\x08\x12\x0f\n\x07sort_by\x18\x04 \x01(\t\x12\x12\n\nsort_order\x18\x05 \x01(\t\x12\r\n\x05query\x18\x06 \x01(\t\"f\n\x13ListMembersResponse\x12\x1f\n\x07members\x18\x01 \x03(\x0b\x32\x0e.member.Member\x12.\n\npagination\x18\x02 \x01(\x0b\x32\x1a.common.PaginationResponse\"0\n\x1bValidateActiveMemberRequest\x12\x11\n\tmember_id\x18\x01 \x01(\t\"b\n\x1cValidateActiveMemberResponse\x12\x11\n\tis_active\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x1e\n\x06member\x18\x03 \x01(\x0b\x32\x0e.member.Member*,\n\x10MembershipStatus\x12\n\n\x06\x41\x43TIVE\x10\x00\x12\x0c\n\x08INACTIVE\x10\x01\x32\xb0\x03\n\rMemberService\x12;\n\x0c\x43reateMember\x12\x1b.member.CreateMemberRequest\x1a\x0e.member.Member\x12;\n\x0cUpdateMember\x12\x1b.member.UpdateMemberRequest\x1a\x0e.member.Member\x12\x35\n\tGetMember\x12\x18.member.GetMemberRequest\x1a\x0e.member.Member\x12\x46\n\x0bListMembers\x12\x1a.member.ListMembersRequest\x1a\x1b.member.ListMembersResponse\x12\x61\n\x14ValidateActiveMember\x12#.member.ValidateActiveMemberRequest\x1a$.member.ValidateActiveMemberResponse\x12\x43\n\x10\x44\x65\x61\x63tivateMember\x12\x1f.member.DeactivateMemberRequest\x1a\x0e.member.Memberb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'member_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_MEMBERSHIPSTATUS']._serialized_start=930
-  _globals['_MEMBERSHIPSTATUS']._serialized_end=974
+  _globals['_MEMBERSHIPSTATUS']._serialized_start=945
+  _globals['_MEMBERSHIPSTATUS']._serialized_end=989
   _globals['_MEMBER']._serialized_start=39
   _globals['_MEMBER']._serialized_end=238
   _globals['_CREATEMEMBERREQUEST']._serialized_start=240
@@ -45,13 +45,13 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_DEACTIVATEMEMBERREQUEST']._serialized_start=462
   _globals['_DEACTIVATEMEMBERREQUEST']._serialized_end=499
   _globals['_LISTMEMBERSREQUEST']._serialized_start=502
-  _globals['_LISTMEMBERSREQUEST']._serialized_end=674
-  _globals['_LISTMEMBERSRESPONSE']._serialized_start=676
-  _globals['_LISTMEMBERSRESPONSE']._serialized_end=778
-  _globals['_VALIDATEACTIVEMEMBERREQUEST']._serialized_start=780
-  _globals['_VALIDATEACTIVEMEMBERREQUEST']._serialized_end=828
-  _globals['_VALIDATEACTIVEMEMBERRESPONSE']._serialized_start=830
-  _globals['_VALIDATEACTIVEMEMBERRESPONSE']._serialized_end=928
-  _globals['_MEMBERSERVICE']._serialized_start=977
-  _globals['_MEMBERSERVICE']._serialized_end=1409
+  _globals['_LISTMEMBERSREQUEST']._serialized_end=689
+  _globals['_LISTMEMBERSRESPONSE']._serialized_start=691
+  _globals['_LISTMEMBERSRESPONSE']._serialized_end=793
+  _globals['_VALIDATEACTIVEMEMBERREQUEST']._serialized_start=795
+  _globals['_VALIDATEACTIVEMEMBERREQUEST']._serialized_end=843
+  _globals['_VALIDATEACTIVEMEMBERRESPONSE']._serialized_start=845
+  _globals['_VALIDATEACTIVEMEMBERRESPONSE']._serialized_end=943
+  _globals['_MEMBERSERVICE']._serialized_start=992
+  _globals['_MEMBERSERVICE']._serialized_end=1424
 # @@protoc_insertion_point(module_scope)

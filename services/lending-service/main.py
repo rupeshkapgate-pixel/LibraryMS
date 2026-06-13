@@ -12,6 +12,7 @@ from app.database import engine
 from app.observability.logging import configure_json_logging, log_event
 from app.telemetry.setup import bootstrap
 from app.models.lending import Base
+from app.grpc_clients import close_downstream_channels
 
 configure_json_logging("lending-service")
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ async def serve():
 
     async def shutdown():
         log_event(logger, logging.INFO, service="lending-service", operation="shutdown", message="Shutting down Lending Service")
+        await close_downstream_channels()
         await server.stop(5)
 
     loop = asyncio.get_running_loop()

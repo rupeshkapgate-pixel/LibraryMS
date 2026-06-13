@@ -79,15 +79,48 @@ class BookRepository:
         category: Optional[str] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        query: Optional[str] = None,
+        search_by: str = "all",
+        author: Optional[str] = None,
+        publisher: Optional[str] = None,
+        available_only: bool = False,
     ) -> Tuple[List[Book], int]:
         base_stmt = select(Book).where(Book.deleted_at.is_(None))
         if category:
-            base_stmt = base_stmt.where(Book.category == category)
+            base_stmt = base_stmt.where(Book.category.ilike(f"%{category}%"))
+        if author:
+            base_stmt = base_stmt.where(Book.author.ilike(f"%{author}%"))
+        if publisher:
+            base_stmt = base_stmt.where(Book.publisher.ilike(f"%{publisher}%"))
+        if available_only:
+            base_stmt = base_stmt.where(Book.available_copies > 0)
+        if query:
+            q = f"%{query.strip()}%"
+            filter_map = {
+                "title": Book.title.ilike(q),
+                "author": Book.author.ilike(q),
+                "category": Book.category.ilike(q),
+                "isbn": Book.isbn.ilike(q),
+                "publisher": Book.publisher.ilike(q),
+                "shelf_location": Book.shelf_location.ilike(q),
+            }
+            base_stmt = base_stmt.where(filter_map.get(search_by, or_(*filter_map.values())))
 
         count_stmt = select(func.count()).select_from(base_stmt.subquery())
         total = await self.session.scalar(count_stmt)
 
-        col = getattr(Book, sort_by, Book.created_at)
+        allowed_sort_columns = {
+            "title": Book.title,
+            "author": Book.author,
+            "isbn": Book.isbn,
+            "category": Book.category,
+            "published_year": Book.published_year,
+            "total_copies": Book.total_copies,
+            "available_copies": Book.available_copies,
+            "created_at": Book.created_at,
+            "updated_at": Book.updated_at,
+        }
+        col = allowed_sort_columns.get(sort_by, Book.created_at)
         base_stmt = base_stmt.order_by(col.desc() if sort_order == "desc" else col.asc())
         base_stmt = base_stmt.offset((page - 1) * page_size).limit(page_size)
         result = await self.session.execute(base_stmt)
@@ -108,6 +141,8 @@ class BookRepository:
             "author": Book.author.ilike(q),
             "category": Book.category.ilike(q),
             "isbn": Book.isbn.ilike(q),
+            "publisher": Book.publisher.ilike(q),
+            "shelf_location": Book.shelf_location.ilike(q),
         }
         if search_by in filter_map:
             base_stmt = base_stmt.where(filter_map[search_by])
@@ -117,6 +152,7 @@ class BookRepository:
         count_stmt = select(func.count()).select_from(base_stmt.subquery())
         total = await self.session.scalar(count_stmt)
 
+        base_stmt = base_stmt.order_by(Book.title.asc())
         base_stmt = base_stmt.offset((page - 1) * page_size).limit(page_size)
         result = await self.session.execute(base_stmt)
         return result.scalars().all(), total or 0

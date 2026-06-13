@@ -51,6 +51,8 @@ message ListMembersRequest {
   bool filter_by_status = 3;
   string sort_by = 4;
   string sort_order = 5;
+  // Optional text search across name, email, phone and address.
+  string query = 6;
 }
 
 message ListMembersResponse {

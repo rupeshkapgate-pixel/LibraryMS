@@ -81,6 +81,7 @@ class MemberService:
         status: Optional[MembershipStatus] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        query: Optional[str] = None,
     ) -> Tuple[List[Member], int]:
         return await self._repo.list_members(
             page=page,
@@ -88,6 +89,7 @@ class MemberService:
             status=status,
             sort_by=sort_by,
             sort_order=sort_order,
+            query=query,
         )
 
     async def validate_active(self, member_id: str) -> Tuple[bool, str, Optional[Member]]:

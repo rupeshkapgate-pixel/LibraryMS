@@ -34,12 +34,26 @@ def upgrade() -> None:
         sa.Column("fine_amount", sa.Float,    nullable=False, server_default="0.0"),
         sa.Column("created_at",  sa.DateTime, nullable=False, server_default=sa.text("now()")),
         sa.Column("updated_at",  sa.DateTime, nullable=False, server_default=sa.text("now()")),
+        sa.CheckConstraint("due_date >= borrowed_at", name="ck_lending_due_after_borrow"),
+        sa.CheckConstraint("fine_amount >= 0", name="ck_lending_fine_non_negative"),
+        sa.CheckConstraint(
+            "(status != 'RETURNED') OR returned_at IS NOT NULL",
+            name="ck_lending_returned_has_returned_at",
+        ),
         schema="lending_db",
     )
     op.create_index("ix_lending_member_id", "lending_records", ["member_id"], schema="lending_db")
     op.create_index("ix_lending_book_id",   "lending_records", ["book_id"],   schema="lending_db")
     op.create_index("ix_lending_status",    "lending_records", ["status"],    schema="lending_db")
     op.create_index("ix_lending_due_date",  "lending_records", ["due_date"],  schema="lending_db")
+    op.create_index(
+        "uq_lending_active_member_book",
+        "lending_records",
+        ["member_id", "book_id"],
+        schema="lending_db",
+        unique=True,
+        postgresql_where=sa.text("status IN ('BORROWED', 'OVERDUE')"),
+    )
 
 
 def downgrade() -> None:

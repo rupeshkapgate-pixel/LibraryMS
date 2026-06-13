@@ -60,6 +60,12 @@ message ListBooksRequest {
   string category = 2;
   string sort_by = 3;
   string sort_order = 4;
+  // Optional list-level search and filters used by REST list screens.
+  string query = 5;
+  string search_by = 6;
+  string author = 7;
+  string publisher = 8;
+  bool available_only = 9;
 }
 
 message ListBooksResponse {

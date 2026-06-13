@@ -22,10 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-import common_pb2 as common__pb2
+from . import common_pb2 as common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nbook.proto\x12\x04\x62ook\x1a\x0c\x63ommon.proto\"\x95\x02\n\x04\x42ook\x12\n\n\x02id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x03 \x01(\t\x12\x0c\n\x04isbn\x18\x04 \x01(\t\x12\x11\n\tpublisher\x18\x05 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x06 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x07 \x01(\t\x12\x16\n\x0epublished_year\x18\x08 \x01(\x05\x12\x14\n\x0ctotal_copies\x18\t \x01(\x05\x12\x18\n\x10\x61vailable_copies\x18\n \x01(\x05\x12\x16\n\x0eshelf_location\x18\x0b \x01(\t\x12\x12\n\ncreated_at\x18\x0c \x01(\t\x12\x12\n\nupdated_at\x18\r \x01(\t\x12\x12\n\ndeleted_at\x18\x0e \x01(\t\"\xc0\x01\n\x11\x43reateBookRequest\x12\r\n\x05title\x18\x01 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x02 \x01(\t\x12\x0c\n\x04isbn\x18\x03 \x01(\t\x12\x11\n\tpublisher\x18\x04 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x05 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x06 \x01(\t\x12\x16\n\x0epublished_year\x18\x07 \x01(\x05\x12\x14\n\x0ctotal_copies\x18\x08 \x01(\x05\x12\x16\n\x0eshelf_location\x18\t \x01(\t\"\xcc\x01\n\x11UpdateBookRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x03 \x01(\t\x12\x0c\n\x04isbn\x18\x04 \x01(\t\x12\x11\n\tpublisher\x18\x05 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x06 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x07 \x01(\t\x12\x16\n\x0epublished_year\x18\x08 \x01(\x05\x12\x14\n\x0ctotal_copies\x18\t \x01(\x05\x12\x16\n\x0eshelf_location\x18\n \x01(\t\"\x1c\n\x0eGetBookRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\x1f\n\x11\x44\x65leteBookRequest\x12\n\n\x02id\x18\x01 \x01(\t\"x\n\x10ListBooksRequest\x12-\n\npagination\x18\x01 \x01(\x0b\x32\x19.common.PaginationRequest\x12\x10\n\x08\x63\x61tegory\x18\x02 \x01(\t\x12\x0f\n\x07sort_by\x18\x03 \x01(\t\x12\x12\n\nsort_order\x18\x04 \x01(\t\"^\n\x11ListBooksResponse\x12\x19\n\x05\x62ooks\x18\x01 \x03(\x0b\x32\n.book.Book\x12.\n\npagination\x18\x02 \x01(\x0b\x32\x1a.common.PaginationResponse\"e\n\x12SearchBooksRequest\x12\r\n\x05query\x18\x01 \x01(\t\x12\x11\n\tsearch_by\x18\x02 \x01(\t\x12-\n\npagination\x18\x03 \x01(\x0b\x32\x19.common.PaginationRequest\"`\n\x13SearchBooksResponse\x12\x19\n\x05\x62ooks\x18\x01 \x03(\x0b\x32\n.book.Book\x12.\n\npagination\x18\x02 \x01(\x0b\x32\x1a.common.PaginationResponse\"+\n\x18\x43heckAvailabilityRequest\x12\x0f\n\x07\x62ook_id\x18\x01 \x01(\t\"H\n\x19\x43heckAvailabilityResponse\x12\x11\n\tavailable\x18\x01 \x01(\x08\x12\x18\n\x10\x61vailable_copies\x18\x02 \x01(\x05\"5\n\x13UpdateCopiesRequest\x12\x0f\n\x07\x62ook_id\x18\x01 \x01(\t\x12\r\n\x05\x63ount\x18\x02 \x01(\x05\"A\n\x14UpdateCopiesResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x18\n\x10\x61vailable_copies\x18\x02 \x01(\x05\x32\xdb\x04\n\x0b\x42ookService\x12\x31\n\nCreateBook\x12\x17.book.CreateBookRequest\x1a\n.book.Book\x12\x31\n\nUpdateBook\x12\x17.book.UpdateBookRequest\x1a\n.book.Book\x12+\n\x07GetBook\x12\x14.book.GetBookRequest\x1a\n.book.Book\x12<\n\tListBooks\x12\x16.book.ListBooksRequest\x1a\x17.book.ListBooksResponse\x12\x42\n\x0bSearchBooks\x12\x18.book.SearchBooksRequest\x1a\x19.book.SearchBooksResponse\x12T\n\x11\x43heckAvailability\x12\x1e.book.CheckAvailabilityRequest\x1a\x1f.book.CheckAvailabilityResponse\x12P\n\x17\x44\x65\x63reaseAvailableCopies\x12\x19.book.UpdateCopiesRequest\x1a\x1a.book.UpdateCopiesResponse\x12P\n\x17IncreaseAvailableCopies\x12\x19.book.UpdateCopiesRequest\x1a\x1a.book.UpdateCopiesResponse\x12=\n\nDeleteBook\x12\x17.book.DeleteBookRequest\x1a\x16.common.StatusResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\nbook.proto\x12\x04\x62ook\x1a\x0c\x63ommon.proto\"\x95\x02\n\x04\x42ook\x12\n\n\x02id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x03 \x01(\t\x12\x0c\n\x04isbn\x18\x04 \x01(\t\x12\x11\n\tpublisher\x18\x05 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x06 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x07 \x01(\t\x12\x16\n\x0epublished_year\x18\x08 \x01(\x05\x12\x14\n\x0ctotal_copies\x18\t \x01(\x05\x12\x18\n\x10\x61vailable_copies\x18\n \x01(\x05\x12\x16\n\x0eshelf_location\x18\x0b \x01(\t\x12\x12\n\ncreated_at\x18\x0c \x01(\t\x12\x12\n\nupdated_at\x18\r \x01(\t\x12\x12\n\ndeleted_at\x18\x0e \x01(\t\"\xc0\x01\n\x11\x43reateBookRequest\x12\r\n\x05title\x18\x01 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x02 \x01(\t\x12\x0c\n\x04isbn\x18\x03 \x01(\t\x12\x11\n\tpublisher\x18\x04 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x05 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x06 \x01(\t\x12\x16\n\x0epublished_year\x18\x07 \x01(\x05\x12\x14\n\x0ctotal_copies\x18\x08 \x01(\x05\x12\x16\n\x0eshelf_location\x18\t \x01(\t\"\xcc\x01\n\x11UpdateBookRequest\x12\n\n\x02id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x03 \x01(\t\x12\x0c\n\x04isbn\x18\x04 \x01(\t\x12\x11\n\tpublisher\x18\x05 \x01(\t\x12\x10\n\x08\x63\x61tegory\x18\x06 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x07 \x01(\t\x12\x16\n\x0epublished_year\x18\x08 \x01(\x05\x12\x14\n\x0ctotal_copies\x18\t \x01(\x05\x12\x16\n\x0eshelf_location\x18\n \x01(\t\"\x1c\n\x0eGetBookRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\x1f\n\x11\x44\x65leteBookRequest\x12\n\n\x02id\x18\x01 \x01(\t\"\xd5\x01\n\x10ListBooksRequest\x12-\n\npagination\x18\x01 \x01(\x0b\x32\x19.common.PaginationRequest\x12\x10\n\x08\x63\x61tegory\x18\x02 \x01(\t\x12\x0f\n\x07sort_by\x18\x03 \x01(\t\x12\x12\n\nsort_order\x18\x04 \x01(\t\x12\r\n\x05query\x18\x05 \x01(\t\x12\x11\n\tsearch_by\x18\x06 \x01(\t\x12\x0e\n\x06\x61uthor\x18\x07 \x01(\t\x12\x11\n\tpublisher\x18\x08 \x01(\t\x12\x16\n\x0e\x61vailable_only\x18\t \x01(\x08\"^\n\x11ListBooksResponse\x12\x19\n\x05\x62ooks\x18\x01 \x03(\x0b\x32\n.book.Book\x12.\n\npagination\x18\x02 \x01(\x0b\x32\x1a.common.PaginationResponse\"e\n\x12SearchBooksRequest\x12\r\n\x05query\x18\x01 \x01(\t\x12\x11\n\tsearch_by\x18\x02 \x01(\t\x12-\n\npagination\x18\x03 \x01(\x0b\x32\x19.common.PaginationRequest\"`\n\x13SearchBooksResponse\x12\x19\n\x05\x62ooks\x18\x01 \x03(\x0b\x32\n.book.Book\x12.\n\npagination\x18\x02 \x01(\x0b\x32\x1a.common.PaginationResponse\"+\n\x18\x43heckAvailabilityRequest\x12\x0f\n\x07\x62ook_id\x18\x01 \x01(\t\"H\n\x19\x43heckAvailabilityResponse\x12\x11\n\tavailable\x18\x01 \x01(\x08\x12\x18\n\x10\x61vailable_copies\x18\x02 \x01(\x05\"5\n\x13UpdateCopiesRequest\x12\x0f\n\x07\x62ook_id\x18\x01 \x01(\t\x12\r\n\x05\x63ount\x18\x02 \x01(\x05\"A\n\x14UpdateCopiesResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x18\n\x10\x61vailable_copies\x18\x02 \x01(\x05\x32\xdb\x04\n\x0b\x42ookService\x12\x31\n\nCreateBook\x12\x17.book.CreateBookRequest\x1a\n.book.Book\x12\x31\n\nUpdateBook\x12\x17.book.UpdateBookRequest\x1a\n.book.Book\x12+\n\x07GetBook\x12\x14.book.GetBookRequest\x1a\n.book.Book\x12<\n\tListBooks\x12\x16.book.ListBooksRequest\x1a\x17.book.ListBooksResponse\x12\x42\n\x0bSearchBooks\x12\x18.book.SearchBooksRequest\x1a\x19.book.SearchBooksResponse\x12T\n\x11\x43heckAvailability\x12\x1e.book.CheckAvailabilityRequest\x1a\x1f.book.CheckAvailabilityResponse\x12P\n\x17\x44\x65\x63reaseAvailableCopies\x12\x19.book.UpdateCopiesRequest\x1a\x1a.book.UpdateCopiesResponse\x12P\n\x17IncreaseAvailableCopies\x12\x19.book.UpdateCopiesRequest\x1a\x1a.book.UpdateCopiesResponse\x12=\n\nDeleteBook\x12\x17.book.DeleteBookRequest\x1a\x16.common.StatusResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -42,22 +42,22 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GETBOOKREQUEST']._serialized_end=744
   _globals['_DELETEBOOKREQUEST']._serialized_start=746
   _globals['_DELETEBOOKREQUEST']._serialized_end=777
-  _globals['_LISTBOOKSREQUEST']._serialized_start=779
-  _globals['_LISTBOOKSREQUEST']._serialized_end=899
-  _globals['_LISTBOOKSRESPONSE']._serialized_start=901
-  _globals['_LISTBOOKSRESPONSE']._serialized_end=995
-  _globals['_SEARCHBOOKSREQUEST']._serialized_start=997
-  _globals['_SEARCHBOOKSREQUEST']._serialized_end=1098
-  _globals['_SEARCHBOOKSRESPONSE']._serialized_start=1100
-  _globals['_SEARCHBOOKSRESPONSE']._serialized_end=1196
-  _globals['_CHECKAVAILABILITYREQUEST']._serialized_start=1198
-  _globals['_CHECKAVAILABILITYREQUEST']._serialized_end=1241
-  _globals['_CHECKAVAILABILITYRESPONSE']._serialized_start=1243
-  _globals['_CHECKAVAILABILITYRESPONSE']._serialized_end=1315
-  _globals['_UPDATECOPIESREQUEST']._serialized_start=1317
-  _globals['_UPDATECOPIESREQUEST']._serialized_end=1370
-  _globals['_UPDATECOPIESRESPONSE']._serialized_start=1372
-  _globals['_UPDATECOPIESRESPONSE']._serialized_end=1437
-  _globals['_BOOKSERVICE']._serialized_start=1440
-  _globals['_BOOKSERVICE']._serialized_end=2043
+  _globals['_LISTBOOKSREQUEST']._serialized_start=780
+  _globals['_LISTBOOKSREQUEST']._serialized_end=993
+  _globals['_LISTBOOKSRESPONSE']._serialized_start=995
+  _globals['_LISTBOOKSRESPONSE']._serialized_end=1089
+  _globals['_SEARCHBOOKSREQUEST']._serialized_start=1091
+  _globals['_SEARCHBOOKSREQUEST']._serialized_end=1192
+  _globals['_SEARCHBOOKSRESPONSE']._serialized_start=1194
+  _globals['_SEARCHBOOKSRESPONSE']._serialized_end=1290
+  _globals['_CHECKAVAILABILITYREQUEST']._serialized_start=1292
+  _globals['_CHECKAVAILABILITYREQUEST']._serialized_end=1335
+  _globals['_CHECKAVAILABILITYRESPONSE']._serialized_start=1337
+  _globals['_CHECKAVAILABILITYRESPONSE']._serialized_end=1409
+  _globals['_UPDATECOPIESREQUEST']._serialized_start=1411
+  _globals['_UPDATECOPIESREQUEST']._serialized_end=1464
+  _globals['_UPDATECOPIESRESPONSE']._serialized_start=1466
+  _globals['_UPDATECOPIESRESPONSE']._serialized_end=1531
+  _globals['_BOOKSERVICE']._serialized_start=1534
+  _globals['_BOOKSERVICE']._serialized_end=2137
 # @@protoc_insertion_point(module_scope)

@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.member import Member, MembershipStatus
@@ -114,16 +114,34 @@ class MemberRepository:
         status: Optional[MembershipStatus] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        query: Optional[str] = None,
     ) -> Tuple[List[Member], int]:
         base_stmt = select(Member).where(Member.deleted_at.is_(None))
 
         if status:
             base_stmt = base_stmt.where(Member.membership_status == status)
+        if query:
+            q = f"%{query.strip()}%"
+            base_stmt = base_stmt.where(
+                or_(
+                    Member.full_name.ilike(q),
+                    Member.email.ilike(q),
+                    Member.phone.ilike(q),
+                    Member.address.ilike(q),
+                )
+            )
 
         count_stmt = select(func.count()).select_from(base_stmt.subquery())
         total = await self.session.scalar(count_stmt)
 
-        col = getattr(Member, sort_by, Member.created_at)
+        allowed_sort_columns = {
+            "full_name": Member.full_name,
+            "email": Member.email,
+            "membership_status": Member.membership_status,
+            "created_at": Member.created_at,
+            "updated_at": Member.updated_at,
+        }
+        col = allowed_sort_columns.get(sort_by, Member.created_at)
         base_stmt = base_stmt.order_by(col.desc() if sort_order == "desc" else col.asc())
         base_stmt = base_stmt.offset((page - 1) * page_size).limit(page_size)
 

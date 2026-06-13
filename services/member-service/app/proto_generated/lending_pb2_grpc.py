@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import lending_pb2 as lending__pb2
+from . import lending_pb2 as lending__pb2
 
 GRPC_GENERATED_VERSION = '1.71.0'
 GRPC_VERSION = grpc.__version__

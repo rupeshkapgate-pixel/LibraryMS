@@ -7,13 +7,14 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://library:library@localhost:5432/librarydb"
 )
 
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=os.getenv("DB_ECHO", "false").lower() == "true",
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-)
+_engine_kwargs = {
+    "echo": os.getenv("DB_ECHO", "false").lower() == "true",
+    "pool_pre_ping": True,
+}
+if not DATABASE_URL.startswith("sqlite"):
+    _engine_kwargs.update({"pool_size": 10, "max_overflow": 20})
+
+engine = create_async_engine(DATABASE_URL, **_engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(
     engine,

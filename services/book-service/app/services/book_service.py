@@ -81,6 +81,11 @@ class BookService:
         category: Optional[str] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        query: Optional[str] = None,
+        search_by: str = "all",
+        author: Optional[str] = None,
+        publisher: Optional[str] = None,
+        available_only: bool = False,
     ) -> Tuple[List[Book], int]:
         return await self._repo.list_books(
             page=page,
@@ -88,6 +93,11 @@ class BookService:
             category=category,
             sort_by=sort_by,
             sort_order=sort_order,
+            query=query,
+            search_by=search_by,
+            author=author,
+            publisher=publisher,
+            available_only=available_only,
         )
 
     async def search_books(

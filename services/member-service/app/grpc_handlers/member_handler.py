@@ -1,17 +1,23 @@
-"""gRPC handlers for Member Service."""
+"""gRPC handlers for Member Service.
+
+Handlers delegate business logic to MemberService and only translate protobuf and
+gRPC status concerns.
+"""
+from __future__ import annotations
+
 import logging
 import math
 
 import grpc
+from sqlalchemy.exc import IntegrityError
 
 from app.database import AsyncSessionLocal
-from app.repositories.member_repository import MemberRepository
-from app.models.member import MembershipStatus
+from app.models.member import Member, MembershipStatus
 from app.observability.logging import get_grpc_correlation_id, log_event
-from app.proto_generated import member_pb2, member_pb2_grpc, common_pb2
+from app.proto_generated import common_pb2, member_pb2, member_pb2_grpc
+from app.services.member_service import MemberService
 
 logger = logging.getLogger(__name__)
-
 _SERVICE = "member-service"
 
 
@@ -39,12 +45,8 @@ def _log_info(operation: str, context, message: str, **extra) -> None:
     )
 
 
-
-def _member_to_proto(member) -> member_pb2.Member:
-    status = member_pb2.MembershipStatus.ACTIVE
-    if member.membership_status == MembershipStatus.INACTIVE:
-        status = member_pb2.MembershipStatus.INACTIVE
-
+def _member_to_proto(member: Member) -> member_pb2.Member:
+    status = member_pb2.MembershipStatus.INACTIVE if member.membership_status == MembershipStatus.INACTIVE else member_pb2.MembershipStatus.ACTIVE
     return member_pb2.Member(
         id=str(member.id),
         full_name=member.full_name or "",
@@ -58,37 +60,43 @@ def _member_to_proto(member) -> member_pb2.Member:
     )
 
 
-class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
+def _set_error(context, exc: Exception) -> None:
+    if isinstance(exc, LookupError):
+        context.set_code(grpc.StatusCode.NOT_FOUND)
+    elif isinstance(exc, IntegrityError):
+        context.set_code(grpc.StatusCode.ALREADY_EXISTS)
+    elif isinstance(exc, ValueError):
+        msg = str(exc).lower()
+        context.set_code(grpc.StatusCode.ALREADY_EXISTS if "already exists" in msg else grpc.StatusCode.INVALID_ARGUMENT)
+    else:
+        context.set_code(grpc.StatusCode.INTERNAL)
+    context.set_details(str(exc))
 
+
+class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
     async def CreateMember(self, request, context):
         try:
             async with AsyncSessionLocal() as session:
-                repo = MemberRepository(session)
-                existing = await repo.get_by_email(request.email)
-                if existing:
-                    context.set_code(grpc.StatusCode.ALREADY_EXISTS)
-                    context.set_details(f"Member with email {request.email} already exists")
-                    return member_pb2.Member()
-
-                data = {
-                    "full_name": request.full_name,
-                    "email": request.email,
-                    "phone": request.phone or None,
-                    "address": request.address or None,
-                }
-                member = await repo.create(data)
+                service = MemberService(session)
+                member = await service.create_member(
+                    {
+                        "full_name": request.full_name,
+                        "email": request.email,
+                        "phone": request.phone or None,
+                        "address": request.address or None,
+                    }
+                )
                 _log_info("CreateMember", context, "Member created", member_id=str(member.id), email=member.email)
                 return _member_to_proto(member)
         except Exception as exc:
             _log_error("CreateMember", context, exc)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(exc))
+            _set_error(context, exc)
             return member_pb2.Member()
 
     async def UpdateMember(self, request, context):
         try:
             async with AsyncSessionLocal() as session:
-                repo = MemberRepository(session)
+                service = MemberService(session)
                 data = {}
                 if request.full_name:
                     data["full_name"] = request.full_name
@@ -99,7 +107,7 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                 if request.address:
                     data["address"] = request.address
 
-                member = await repo.update(request.id, data)
+                member = await service.update_member(request.id, data)
                 if not member:
                     context.set_code(grpc.StatusCode.NOT_FOUND)
                     context.set_details(f"Member {request.id} not found")
@@ -107,15 +115,14 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                 return _member_to_proto(member)
         except Exception as exc:
             _log_error("UpdateMember", context, exc)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(exc))
+            _set_error(context, exc)
             return member_pb2.Member()
 
     async def GetMember(self, request, context):
         try:
             async with AsyncSessionLocal() as session:
-                repo = MemberRepository(session)
-                member = await repo.get_by_id(request.id)
+                service = MemberService(session)
+                member = await service.get_member(request.id)
                 if not member:
                     context.set_code(grpc.StatusCode.NOT_FOUND)
                     context.set_details(f"Member {request.id} not found")
@@ -123,31 +130,26 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                 return _member_to_proto(member)
         except Exception as exc:
             _log_error("GetMember", context, exc)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(exc))
+            _set_error(context, exc)
             return member_pb2.Member()
 
     async def ListMembers(self, request, context):
         try:
             async with AsyncSessionLocal() as session:
-                repo = MemberRepository(session)
+                service = MemberService(session)
                 page = request.pagination.page or 1
                 page_size = request.pagination.page_size or 20
-
                 status = None
                 if request.filter_by_status:
-                    status = (
-                        MembershipStatus.ACTIVE
-                        if request.status == member_pb2.MembershipStatus.ACTIVE
-                        else MembershipStatus.INACTIVE
-                    )
+                    status = MembershipStatus.ACTIVE if request.status == member_pb2.MembershipStatus.ACTIVE else MembershipStatus.INACTIVE
 
-                members, total = await repo.list_members(
+                members, total = await service.list_members(
                     page=page,
                     page_size=page_size,
                     status=status,
                     sort_by=request.sort_by or "created_at",
                     sort_order=request.sort_order or "desc",
+                    query=request.query or None,
                 )
                 total_pages = math.ceil(total / page_size) if page_size > 0 else 0
                 return member_pb2.ListMembersResponse(
@@ -161,42 +163,28 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                 )
         except Exception as exc:
             _log_error("ListMembers", context, exc)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(exc))
+            _set_error(context, exc)
             return member_pb2.ListMembersResponse()
 
     async def ValidateActiveMember(self, request, context):
         try:
             async with AsyncSessionLocal() as session:
-                repo = MemberRepository(session)
-                member = await repo.get_by_id(request.member_id)
-                if not member:
-                    return member_pb2.ValidateActiveMemberResponse(
-                        is_active=False,
-                        message=f"Member {request.member_id} not found",
-                    )
-                if member.membership_status == MembershipStatus.INACTIVE:
-                    return member_pb2.ValidateActiveMemberResponse(
-                        is_active=False,
-                        message="Member is inactive",
-                        member=_member_to_proto(member),
-                    )
-                return member_pb2.ValidateActiveMemberResponse(
-                    is_active=True,
-                    message="Member is active",
-                    member=_member_to_proto(member),
-                )
+                service = MemberService(session)
+                is_active, message, member = await service.validate_active(request.member_id)
+                response = member_pb2.ValidateActiveMemberResponse(is_active=is_active, message=message)
+                if member:
+                    response.member.CopyFrom(_member_to_proto(member))
+                return response
         except Exception as exc:
             _log_error("ValidateActiveMember", context, exc)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(exc))
+            _set_error(context, exc)
             return member_pb2.ValidateActiveMemberResponse()
 
     async def DeactivateMember(self, request, context):
         try:
             async with AsyncSessionLocal() as session:
-                repo = MemberRepository(session)
-                member = await repo.deactivate(request.id)
+                service = MemberService(session)
+                member = await service.deactivate(request.id)
                 if not member:
                     context.set_code(grpc.StatusCode.NOT_FOUND)
                     context.set_details(f"Member {request.id} not found")
@@ -204,6 +192,5 @@ class MemberServiceHandler(member_pb2_grpc.MemberServiceServicer):
                 return _member_to_proto(member)
         except Exception as exc:
             _log_error("DeactivateMember", context, exc)
-            context.set_code(grpc.StatusCode.INTERNAL)
-            context.set_details(str(exc))
+            _set_error(context, exc)
             return member_pb2.Member()

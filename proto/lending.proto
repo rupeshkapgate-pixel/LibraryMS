@@ -50,6 +50,14 @@ message ListBorrowedBooksRequest {
   common.PaginationRequest pagination = 1;
   string sort_by = 2;
   string sort_order = 3;
+  // Optional filters for list views and return workflows.
+  string query = 4;
+  string member_id = 5;
+  string book_id = 6;
+  LendingStatus status = 7;
+  bool filter_by_status = 8;
+  string due_from = 9;
+  string due_to = 10;
 }
 
 message ListBorrowedBooksResponse {
@@ -69,6 +77,11 @@ message ListBookBorrowHistoryRequest {
 
 message ListOverdueBooksRequest {
   common.PaginationRequest pagination = 1;
+  string query = 2;
+  string member_id = 3;
+  string book_id = 4;
+  string due_from = 5;
+  string due_to = 6;
 }
 
 service LendingService {

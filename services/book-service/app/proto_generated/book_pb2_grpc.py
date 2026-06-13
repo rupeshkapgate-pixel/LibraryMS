@@ -3,8 +3,8 @@
 import grpc
 import warnings
 
-import book_pb2 as book__pb2
-import common_pb2 as common__pb2
+from . import book_pb2 as book__pb2
+from . import common_pb2 as common__pb2
 
 GRPC_GENERATED_VERSION = '1.71.0'
 GRPC_VERSION = grpc.__version__

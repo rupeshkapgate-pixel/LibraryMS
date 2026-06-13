@@ -22,18 +22,18 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-import common_pb2 as common__pb2
+from . import common_pb2 as common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rlending.proto\x12\x07lending\x1a\x0c\x63ommon.proto\"\xb2\x02\n\rLendingRecord\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\tmember_id\x18\x02 \x01(\t\x12\x0f\n\x07\x62ook_id\x18\x03 \x01(\t\x12\x13\n\x0b\x62orrowed_at\x18\x04 \x01(\t\x12\x10\n\x08\x64ue_date\x18\x05 \x01(\t\x12\x13\n\x0breturned_at\x18\x06 \x01(\t\x12&\n\x06status\x18\x07 \x01(\x0e\x32\x16.lending.LendingStatus\x12\x13\n\x0b\x66ine_amount\x18\x08 \x01(\x02\x12\x12\n\ncreated_at\x18\t \x01(\t\x12\x12\n\nupdated_at\x18\n \x01(\t\x12\x12\n\nbook_title\x18\x0b \x01(\t\x12\x11\n\tbook_isbn\x18\x0c \x01(\t\x12\x13\n\x0bmember_name\x18\r \x01(\t\x12\x14\n\x0cmember_email\x18\x0e \x01(\t\"I\n\x11\x42orrowBookRequest\x12\x11\n\tmember_id\x18\x01 \x01(\t\x12\x0f\n\x07\x62ook_id\x18\x02 \x01(\t\x12\x10\n\x08\x64ue_days\x18\x03 \x01(\x05\"\'\n\x11ReturnBookRequest\x12\x12\n\nlending_id\x18\x01 \x01(\t\"{\n\x12ReturnBookResponse\x12&\n\x06record\x18\x01 \x01(\x0b\x32\x16.lending.LendingRecord\x12\x13\n\x0b\x66ine_amount\x18\x02 \x01(\x02\x12\x12\n\nis_overdue\x18\x03 \x01(\x08\x12\x14\n\x0coverdue_days\x18\x04 \x01(\x05\"n\n\x18ListBorrowedBooksRequest\x12-\n\npagination\x18\x01 \x01(\x0b\x32\x19.common.PaginationRequest\x12\x0f\n\x07sort_by\x18\x02 \x01(\t\x12\x12\n\nsort_order\x18\x03 \x01(\t\"t\n\x19ListBorrowedBooksResponse\x12\'\n\x07records\x18\x01 \x03(\x0b\x32\x16.lending.LendingRecord\x12.\n\npagination\x18\x02 \x01(\x0b\x32\x1a.common.PaginationResponse\"d\n ListBorrowedBooksByMemberRequest\x12\x11\n\tmember_id\x18\x01 \x01(\t\x12-\n\npagination\x18\x02 \x01(\x0b\x32\x19.common.PaginationRequest\"^\n\x1cListBookBorrowHistoryRequest\x12\x0f\n\x07\x62ook_id\x18\x01 \x01(\t\x12-\n\npagination\x18\x02 \x01(\x0b\x32\x19.common.PaginationRequest\"H\n\x17ListOverdueBooksRequest\x12-\n\npagination\x18\x01 \x01(\x0b\x32\x19.common.PaginationRequest*8\n\rLendingStatus\x12\x0c\n\x08\x42ORROWED\x10\x00\x12\x0c\n\x08RETURNED\x10\x01\x12\x0b\n\x07OVERDUE\x10\x02\x32\x9f\x04\n\x0eLendingService\x12@\n\nBorrowBook\x12\x1a.lending.BorrowBookRequest\x1a\x16.lending.LendingRecord\x12\x45\n\nReturnBook\x12\x1a.lending.ReturnBookRequest\x1a\x1b.lending.ReturnBookResponse\x12Z\n\x11ListBorrowedBooks\x12!.lending.ListBorrowedBooksRequest\x1a\".lending.ListBorrowedBooksResponse\x12j\n\x19ListBorrowedBooksByMember\x12).lending.ListBorrowedBooksByMemberRequest\x1a\".lending.ListBorrowedBooksResponse\x12\x62\n\x15ListBookBorrowHistory\x12%.lending.ListBookBorrowHistoryRequest\x1a\".lending.ListBorrowedBooksResponse\x12X\n\x10ListOverdueBooks\x12 .lending.ListOverdueBooksRequest\x1a\".lending.ListBorrowedBooksResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rlending.proto\x12\x07lending\x1a\x0c\x63ommon.proto\"\xb2\x02\n\rLendingRecord\x12\n\n\x02id\x18\x01 \x01(\t\x12\x11\n\tmember_id\x18\x02 \x01(\t\x12\x0f\n\x07\x62ook_id\x18\x03 \x01(\t\x12\x13\n\x0b\x62orrowed_at\x18\x04 \x01(\t\x12\x10\n\x08\x64ue_date\x18\x05 \x01(\t\x12\x13\n\x0breturned_at\x18\x06 \x01(\t\x12&\n\x06status\x18\x07 \x01(\x0e\x32\x16.lending.LendingStatus\x12\x13\n\x0b\x66ine_amount\x18\x08 \x01(\x02\x12\x12\n\ncreated_at\x18\t \x01(\t\x12\x12\n\nupdated_at\x18\n \x01(\t\x12\x12\n\nbook_title\x18\x0b \x01(\t\x12\x11\n\tbook_isbn\x18\x0c \x01(\t\x12\x13\n\x0bmember_name\x18\r \x01(\t\x12\x14\n\x0cmember_email\x18\x0e \x01(\t\"I\n\x11\x42orrowBookRequest\x12\x11\n\tmember_id\x18\x01 \x01(\t\x12\x0f\n\x07\x62ook_id\x18\x02 \x01(\t\x12\x10\n\x08\x64ue_days\x18\x03 \x01(\x05\"\'\n\x11ReturnBookRequest\x12\x12\n\nlending_id\x18\x01 \x01(\t\"{\n\x12ReturnBookResponse\x12&\n\x06record\x18\x01 \x01(\x0b\x32\x16.lending.LendingRecord\x12\x13\n\x0b\x66ine_amount\x18\x02 \x01(\x02\x12\x12\n\nis_overdue\x18\x03 \x01(\x08\x12\x14\n\x0coverdue_days\x18\x04 \x01(\x05\"\x85\x02\n\x18ListBorrowedBooksRequest\x12-\n\npagination\x18\x01 \x01(\x0b\x32\x19.common.PaginationRequest\x12\x0f\n\x07sort_by\x18\x02 \x01(\t\x12\x12\n\nsort_order\x18\x03 \x01(\t\x12\r\n\x05query\x18\x04 \x01(\t\x12\x11\n\tmember_id\x18\x05 \x01(\t\x12\x0f\n\x07\x62ook_id\x18\x06 \x01(\t\x12&\n\x06status\x18\x07 \x01(\x0e\x32\x16.lending.LendingStatus\x12\x18\n\x10\x66ilter_by_status\x18\x08 \x01(\x08\x12\x10\n\x08\x64ue_from\x18\t \x01(\t\x12\x0e\n\x06\x64ue_to\x18\n \x01(\t\"t\n\x19ListBorrowedBooksResponse\x12\'\n\x07records\x18\x01 \x03(\x0b\x32\x16.lending.LendingRecord\x12.\n\npagination\x18\x02 \x01(\x0b\x32\x1a.common.PaginationResponse\"d\n ListBorrowedBooksByMemberRequest\x12\x11\n\tmember_id\x18\x01 \x01(\t\x12-\n\npagination\x18\x02 \x01(\x0b\x32\x19.common.PaginationRequest\"^\n\x1cListBookBorrowHistoryRequest\x12\x0f\n\x07\x62ook_id\x18\x01 \x01(\t\x12-\n\npagination\x18\x02 \x01(\x0b\x32\x19.common.PaginationRequest\"\x9d\x01\n\x17ListOverdueBooksRequest\x12-\n\npagination\x18\x01 \x01(\x0b\x32\x19.common.PaginationRequest\x12\r\n\x05query\x18\x02 \x01(\t\x12\x11\n\tmember_id\x18\x03 \x01(\t\x12\x0f\n\x07\x62ook_id\x18\x04 \x01(\t\x12\x10\n\x08\x64ue_from\x18\x05 \x01(\t\x12\x0e\n\x06\x64ue_to\x18\x06 \x01(\t*8\n\rLendingStatus\x12\x0c\n\x08\x42ORROWED\x10\x00\x12\x0c\n\x08RETURNED\x10\x01\x12\x0b\n\x07OVERDUE\x10\x02\x32\x9f\x04\n\x0eLendingService\x12@\n\nBorrowBook\x12\x1a.lending.BorrowBookRequest\x1a\x16.lending.LendingRecord\x12\x45\n\nReturnBook\x12\x1a.lending.ReturnBookRequest\x1a\x1b.lending.ReturnBookResponse\x12Z\n\x11ListBorrowedBooks\x12!.lending.ListBorrowedBooksRequest\x1a\".lending.ListBorrowedBooksResponse\x12j\n\x19ListBorrowedBooksByMember\x12).lending.ListBorrowedBooksByMemberRequest\x1a\".lending.ListBorrowedBooksResponse\x12\x62\n\x15ListBookBorrowHistory\x12%.lending.ListBookBorrowHistoryRequest\x1a\".lending.ListBorrowedBooksResponse\x12X\n\x10ListOverdueBooks\x12 .lending.ListOverdueBooksRequest\x1a\".lending.ListBorrowedBooksResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'lending_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_LENDINGSTATUS']._serialized_start=1092
-  _globals['_LENDINGSTATUS']._serialized_end=1148
+  _globals['_LENDINGSTATUS']._serialized_start=1330
+  _globals['_LENDINGSTATUS']._serialized_end=1386
   _globals['_LENDINGRECORD']._serialized_start=41
   _globals['_LENDINGRECORD']._serialized_end=347
   _globals['_BORROWBOOKREQUEST']._serialized_start=349
@@ -42,16 +42,16 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_RETURNBOOKREQUEST']._serialized_end=463
   _globals['_RETURNBOOKRESPONSE']._serialized_start=465
   _globals['_RETURNBOOKRESPONSE']._serialized_end=588
-  _globals['_LISTBORROWEDBOOKSREQUEST']._serialized_start=590
-  _globals['_LISTBORROWEDBOOKSREQUEST']._serialized_end=700
-  _globals['_LISTBORROWEDBOOKSRESPONSE']._serialized_start=702
-  _globals['_LISTBORROWEDBOOKSRESPONSE']._serialized_end=818
-  _globals['_LISTBORROWEDBOOKSBYMEMBERREQUEST']._serialized_start=820
-  _globals['_LISTBORROWEDBOOKSBYMEMBERREQUEST']._serialized_end=920
-  _globals['_LISTBOOKBORROWHISTORYREQUEST']._serialized_start=922
-  _globals['_LISTBOOKBORROWHISTORYREQUEST']._serialized_end=1016
-  _globals['_LISTOVERDUEBOOKSREQUEST']._serialized_start=1018
-  _globals['_LISTOVERDUEBOOKSREQUEST']._serialized_end=1090
-  _globals['_LENDINGSERVICE']._serialized_start=1151
-  _globals['_LENDINGSERVICE']._serialized_end=1694
+  _globals['_LISTBORROWEDBOOKSREQUEST']._serialized_start=591
+  _globals['_LISTBORROWEDBOOKSREQUEST']._serialized_end=852
+  _globals['_LISTBORROWEDBOOKSRESPONSE']._serialized_start=854
+  _globals['_LISTBORROWEDBOOKSRESPONSE']._serialized_end=970
+  _globals['_LISTBORROWEDBOOKSBYMEMBERREQUEST']._serialized_start=972
+  _globals['_LISTBORROWEDBOOKSBYMEMBERREQUEST']._serialized_end=1072
+  _globals['_LISTBOOKBORROWHISTORYREQUEST']._serialized_start=1074
+  _globals['_LISTBOOKBORROWHISTORYREQUEST']._serialized_end=1168
+  _globals['_LISTOVERDUEBOOKSREQUEST']._serialized_start=1171
+  _globals['_LISTOVERDUEBOOKSREQUEST']._serialized_end=1328
+  _globals['_LENDINGSERVICE']._serialized_start=1389
+  _globals['_LENDINGSERVICE']._serialized_end=1932
 # @@protoc_insertion_point(module_scope)

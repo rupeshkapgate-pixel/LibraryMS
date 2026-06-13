@@ -1,9 +1,7 @@
-"""Reusable gRPC client channels for API Gateway.
+"""Reusable downstream gRPC clients for Lending Service.
 
-Channels are intentionally process-scoped and reused across requests. Creating a
-new HTTP/2 gRPC channel per REST request is expensive and can exhaust sockets
-under load. The routers borrow these shared channels and the FastAPI shutdown
-hook closes them gracefully.
+Borrow/return workflows call Book and Member services. Reusing process-scoped
+channels avoids creating a new HTTP/2 connection for every gRPC request.
 """
 from __future__ import annotations
 
@@ -12,14 +10,10 @@ from typing import Dict
 
 import grpc
 
-BOOK_SERVICE_HOST = os.getenv("BOOK_SERVICE_HOST", "localhost")
-BOOK_SERVICE_PORT = os.getenv("BOOK_SERVICE_PORT", "50051")
-MEMBER_SERVICE_HOST = os.getenv("MEMBER_SERVICE_HOST", "localhost")
-MEMBER_SERVICE_PORT = os.getenv("MEMBER_SERVICE_PORT", "50052")
-LENDING_SERVICE_HOST = os.getenv("LENDING_SERVICE_HOST", "localhost")
-LENDING_SERVICE_PORT = os.getenv("LENDING_SERVICE_PORT", "50053")
+from app.proto_generated import book_pb2_grpc, member_pb2_grpc
 
-GRPC_TIMEOUT = int(os.getenv("GRPC_TIMEOUT", "30"))
+BOOK_SERVICE_ADDR = f"{os.getenv('BOOK_SERVICE_HOST', 'localhost')}:{os.getenv('BOOK_SERVICE_PORT', '50051')}"
+MEMBER_SERVICE_ADDR = f"{os.getenv('MEMBER_SERVICE_HOST', 'localhost')}:{os.getenv('MEMBER_SERVICE_PORT', '50052')}"
 
 # Keepalive pings are intentionally disabled here.
 #
@@ -46,19 +40,22 @@ def _channel(name: str, target: str) -> grpc.aio.Channel:
 
 
 def get_book_channel() -> grpc.aio.Channel:
-    return _channel("book", f"{BOOK_SERVICE_HOST}:{BOOK_SERVICE_PORT}")
+    return _channel("book", BOOK_SERVICE_ADDR)
 
 
 def get_member_channel() -> grpc.aio.Channel:
-    return _channel("member", f"{MEMBER_SERVICE_HOST}:{MEMBER_SERVICE_PORT}")
+    return _channel("member", MEMBER_SERVICE_ADDR)
 
 
-def get_lending_channel() -> grpc.aio.Channel:
-    return _channel("lending", f"{LENDING_SERVICE_HOST}:{LENDING_SERVICE_PORT}")
+def get_book_stub() -> book_pb2_grpc.BookServiceStub:
+    return book_pb2_grpc.BookServiceStub(get_book_channel())
 
 
-async def close_channels() -> None:
-    """Close all shared channels during application shutdown."""
+def get_member_stub() -> member_pb2_grpc.MemberServiceStub:
+    return member_pb2_grpc.MemberServiceStub(get_member_channel())
+
+
+async def close_downstream_channels() -> None:
     channels = list(_CHANNELS.values())
     _CHANNELS.clear()
     for channel in channels:

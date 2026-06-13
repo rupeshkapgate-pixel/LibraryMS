@@ -32,6 +32,16 @@ def upgrade() -> None:
         sa.Column("created_at",       sa.DateTime,     nullable=False, server_default=sa.text("now()")),
         sa.Column("updated_at",       sa.DateTime,     nullable=False, server_default=sa.text("now()")),
         sa.Column("deleted_at",       sa.DateTime,     nullable=True),
+        sa.CheckConstraint("length(trim(title)) > 0", name="ck_books_title_not_blank"),
+        sa.CheckConstraint("length(trim(author)) > 0", name="ck_books_author_not_blank"),
+        sa.CheckConstraint("length(trim(isbn)) >= 10", name="ck_books_isbn_min_length"),
+        sa.CheckConstraint("total_copies >= 0", name="ck_books_total_copies_non_negative"),
+        sa.CheckConstraint("available_copies >= 0", name="ck_books_available_copies_non_negative"),
+        sa.CheckConstraint("available_copies <= total_copies", name="ck_books_available_not_greater_than_total"),
+        sa.CheckConstraint(
+            "published_year IS NULL OR published_year BETWEEN 1000 AND 9999",
+            name="ck_books_published_year_valid",
+        ),
         schema="books_db",
     )
     op.create_index("ix_books_title",      "books", ["title"],    schema="books_db")

@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, String, DateTime, Enum, Index
+from sqlalchemy import CheckConstraint, Column, String, DateTime, Enum, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
 import enum
@@ -20,6 +20,8 @@ class MembershipStatus(str, enum.Enum):
 class Member(Base):
     __tablename__ = "members"
     __table_args__ = (
+        CheckConstraint("length(trim(full_name)) > 0", name="ck_members_full_name_not_blank"),
+        CheckConstraint("length(trim(email)) > 3", name="ck_members_email_not_blank"),
         Index("ix_members_email", "email"),
         Index("ix_members_status", "membership_status"),
         Index("ix_members_deleted_at", "deleted_at"),

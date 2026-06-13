@@ -33,6 +33,8 @@ def upgrade() -> None:
         sa.Column("created_at",        sa.DateTime, nullable=False, server_default=sa.text("now()")),
         sa.Column("updated_at",        sa.DateTime, nullable=False, server_default=sa.text("now()")),
         sa.Column("deleted_at",        sa.DateTime, nullable=True),
+        sa.CheckConstraint("length(trim(full_name)) > 0", name="ck_members_full_name_not_blank"),
+        sa.CheckConstraint("length(trim(email)) > 3", name="ck_members_email_not_blank"),
         schema="members_db",
     )
     op.create_index("ix_members_email",      "members", ["email"],             schema="members_db", unique=True)
